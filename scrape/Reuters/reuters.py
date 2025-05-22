@@ -28,7 +28,7 @@ async def scrape_category(context, category):
         await asyncio.sleep(2)
 
     # Screenshot for debugging (optional)
-    await page.screenshot(path=f"output/{category}_page.png")
+    await page.screenshot(path=f"scrape/Reuters/output/{category}_page.png")
 
     links = await page.query_selector_all("a[data-testid='Heading']")
     articles = []
@@ -93,7 +93,7 @@ async def scrape_reuters():
         await browser.close()
 
         # Save as JSON
-        with open("output/reuters_articles.json", "w", encoding="utf-8") as f:
+        with open("scrape/Reuters/output/reuters_articles.json", "w", encoding="utf-8") as f:
             json.dump(all_articles, f, ensure_ascii=False, indent=4)
 
         print(f"\n✅ Done! Scraped {len(all_articles)} articles across {len(CATEGORIES)} categories.")
