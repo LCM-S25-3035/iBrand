@@ -79,7 +79,7 @@ async def scrape_reuters():
 
         all_articles = []
 
-        os.makedirs("output", exist_ok=True)
+        os.makedirs("scrape/Reuters/output/", exist_ok=True)
 
         for cat in CATEGORIES:
             print(f"🔍 Scraping category: {cat}")
