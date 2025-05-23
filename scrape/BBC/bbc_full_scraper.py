@@ -7,7 +7,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
 
-OUTPUT_FILE = "bbc_all_articles.json"
+OUTPUT_FILE = "scrape/BBC/bbc_all_articles.json"
 
 SECTION_LINKS = [
     # (same as before)
