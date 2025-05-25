@@ -1,0 +1,21 @@
+# Core requirements
+kafka-python
+requests
+beautifulsoup4
+lxml
+pymongo
+
+# Optional if you're doing any NLP/sentiment/truth analysis
+openai
+transformers
+torch
+tqdm
+
+# If you're planning to use PySpark
+pyspark
+
+# For emoji/sticker generation via Emojigen repo
+# emoji
+
+# If you're scraping with Playwright
+playwright
