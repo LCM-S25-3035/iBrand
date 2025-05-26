@@ -57,7 +57,7 @@ SECTION_LINKS = [
     "https://www.bbc.com/future-planet/green-living"
 ]
 
-def get_article_links(section_url, pages=10):
+def get_article_links(section_url, pages=25):
     all_links = set()
     for page in range(1, pages + 1):
         url = section_url if page == 1 else f"{section_url}?page={page}"
@@ -143,15 +143,15 @@ def scrape_bbc_all():
 
     for section in SECTION_LINKS:
         print(f"Crawling section: {section}")
-        links = get_article_links(section, pages=10)
+        links = get_article_links(section, pages=25)
         for link in links:
             if link in existing_urls:
                 continue
             article = extract_article(link)
-            if article and article["author"]:
+            if article:
                 all_articles.append(article)
                 existing_urls.add(link)
-            time.sleep(random.uniform(1.5, 2.5))
+            time.sleep(random.uniform(1.5, 3.5))
     return all_articles
 
 def save_to_json(data):
