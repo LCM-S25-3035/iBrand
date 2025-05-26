@@ -4,7 +4,7 @@ import os
 import time
 
 # === Configuration ===
-API_KEY = "a4503c476d137ac149085db5ddb6e7da"  # Replace with your Mediastack API key
+API_KEY = "XXXXXXXXXXXXXXXX"  
 NEWS_FILE = "filtered_mediastack_articles.json"
 MEDIASTACK_URL = "http://api.mediastack.com/v1/news"
 PAGE_SIZE = 100  # Max allowed per request
