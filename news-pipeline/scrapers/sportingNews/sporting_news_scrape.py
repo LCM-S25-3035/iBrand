@@ -49,15 +49,20 @@ async def extract_article_data(context, url, retries=3):
             title = await page.title()
             published = await page.query_selector("time")
             published_date = await published.get_attribute("datetime") if published else None
-            author_el = await page.query_selector('[data-testid="text--authors-name"]')
-            author = await author_el.inner_text() if author_el else None
+            author_el = await page.query_selector('[data-testid="article-author-list--name"]')
+            if author_el:
+                author = await author_el.inner_text()
+            else:
+                meta_author = await page.query_selector('meta[name="author"]')
+                author = await meta_author.get_attribute("content") if meta_author else None
+
 
             return {
                 "source": "SportingNews",
                 "title": title.strip(),
                 "summary": None,
                 "published_date": published_date,
-                "author": author,
+                "author": author.strip() if author else None,
                 "url": url,
                 "content": content.strip(),
             }
@@ -86,7 +91,7 @@ async def get_article_urls(page):
 async def collect_all_urls(context, section_url, max_urls):
     collected = set()
     page = await context.new_page()
-    await page.goto(section_url)
+    await page.goto(section_url, wait_until="domcontentloaded", timeout=30000)
     pages_visited = 0
 
     while len(collected) < max_urls and pages_visited < MAX_PAGES_PER_SECTION:
@@ -118,10 +123,6 @@ async def process_articles(urls, context, max_concurrent):
             data = await extract_article_data(context, url)
             if data and data["content"]:
                 results.append(data)
-                # Save every 500 articles
-                if len(results) % 500 == 0:
-                    with open(f"partial_{len(results)}.json", "w", encoding="utf-8") as f:
-                        json.dump(results, f, ensure_ascii=False, indent=2)
             queue.task_done()
 
     queue = asyncio.Queue()
@@ -131,6 +132,7 @@ async def process_articles(urls, context, max_concurrent):
     tasks = [worker(queue) for _ in range(max_concurrent)]
     await asyncio.gather(*tasks)
     return results
+
 
 # ─── Add Summaries to Articles ────────────────────────────────────────────────
 async def add_summaries(articles):
@@ -142,7 +144,19 @@ async def add_summaries(articles):
             batch[j]["summary"] = summary.strip()
 
 # ─── Main Function ────────────────────────────────────────────────────────────
+import os
+
+# ─── Main Function ────────────────────────────────────────────────────────────
 async def main():
+    # Load existing data if present
+    if os.path.exists(OUTPUT_FILE):
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            existing_articles = json.load(f)
+    else:
+        existing_articles = []
+
+    existing_urls = set(article["url"] for article in existing_articles)
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
@@ -153,19 +167,24 @@ async def main():
             urls = await collect_all_urls(context, section_url, MAX_ARTICLES // len(SECTIONS))
             all_urls.update(urls)
 
-        all_urls = list(all_urls)[:MAX_ARTICLES]
-        print(f"Total URLs to process: {len(all_urls)}")
+        # Remove already processed URLs
+        new_urls = list(set(all_urls) - existing_urls)
+        print(f"Found {len(all_urls)} URLs total, {len(new_urls)} are new")
 
-        articles = await process_articles(all_urls, context, CONCURRENT_PAGES)
+        # Process only new URLs
+        new_articles = await process_articles(new_urls, context, CONCURRENT_PAGES)
 
         print("Generating summaries...")
-        await add_summaries(articles)
+        await add_summaries(new_articles)
+
+        combined_articles = existing_articles + new_articles
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            json.dump(articles, f, ensure_ascii=False, indent=2)
+            json.dump(combined_articles, f, ensure_ascii=False, indent=2)
 
-        print(f"Done. Saved {len(articles)} articles to {OUTPUT_FILE}")
+        print(f"Done. Total saved articles: {len(combined_articles)}")
         await browser.close()
+
 
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
