@@ -30,7 +30,7 @@ services:
     container_name: schema-registry
     depends_on:
       - kafka
-    ports:
+    ports: 
       - "8082:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
