@@ -1,12 +1,31 @@
 from playwright.sync_api import sync_playwright
 from urllib.parse import urlparse
+from kafka import KafkaProducer
 import json
 import time
 import os
 
 OUTPUT_FILE = "techcrunch_articles.json"
-MAX_ARTICLES = 20000
+MAX_ARTICLES = 200
+KAFKA_TOPIC = "techcrunch-articles"
+KAFKA_SERVER = os.getenv("KAFKA_SERVER", "kafka:9092")
 
+# Setup Kafka producer
+def create_producer():
+    return KafkaProducer(
+        bootstrap_servers=KAFKA_SERVER,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+
+def send_to_kafka(producer, topic, article_data):
+    try:
+        producer.send(topic, article_data)
+        producer.flush()
+        print(f"Sent to Kafka: {article_data['title']}")
+    except Exception as e:
+        print(f"Kafka send failed: {e}")
+
+# Load already-scraped URLs
 def get_existing_urls():
     if os.path.exists(OUTPUT_FILE):
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
@@ -122,13 +141,17 @@ def scrape_single_article(page, url):
         print(f"Failed to extract article at {url}: {e}")
         return None
 
+# Scrape multiple articles and send to Kafka
 def scrape_multiple_articles(limit=MAX_ARTICLES):
     existing_data = []
+    seen_urls = set()
+
     if os.path.exists(OUTPUT_FILE):
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
             existing_data = json.load(f)
+            seen_urls = {a["url"] for a in existing_data}
 
-    seen_urls = {a["url"] for a in existing_data}
+    producer = create_producer()
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -142,8 +165,10 @@ def scrape_multiple_articles(limit=MAX_ARTICLES):
         for i, link in enumerate(new_links, 1):
             print(f"[{i}/{len(new_links)}] Scraping: {link}")
             article = scrape_single_article(page, link)
-            if article:
+            if article and article["url"] not in seen_urls:
+                send_to_kafka(producer, KAFKA_TOPIC, article)
                 new_articles.append(article)
+                seen_urls.add(article["url"])
             time.sleep(1)
 
         browser.close()
