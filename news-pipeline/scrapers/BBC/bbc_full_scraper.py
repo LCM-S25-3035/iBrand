@@ -10,7 +10,6 @@ HEADERS = {
 OUTPUT_FILE = "scrape/BBC/bbc_all_articles.json"
 
 SECTION_LINKS = [
-    # (same as before)
     "https://www.bbc.com/news/topics/c2vdnvdg6xxt",
     "https://www.bbc.com/news/war-in-ukraine",
     "https://www.bbc.com/news/us-canada",
@@ -57,7 +56,7 @@ SECTION_LINKS = [
     "https://www.bbc.com/future-planet/green-living"
 ]
 
-def get_article_links(section_url, pages=10):
+def get_article_links(section_url, pages=25):
     all_links = set()
     for page in range(1, pages + 1):
         url = section_url if page == 1 else f"{section_url}?page={page}"
@@ -75,60 +74,77 @@ def get_article_links(section_url, pages=10):
 
 def extract_article(url):
     try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = fetch_html(url)
+        if not res:
+            return None
+
         soup = BeautifulSoup(res.text, 'html.parser')
         print(f"Debugging author for: {url}")
 
-        title = soup.find('h1').get_text(strip=True) if soup.find('h1') else None
-        time_tag = soup.find('time')
-        published_date = time_tag.get('datetime') if time_tag else None
-        body = soup.find('article') or soup.find('main')
-        paragraphs = body.find_all('p') if body else []
-        content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-        summary = content[:200] if content else None
-
-        author = None
-        meta_author = soup.find("meta", {"name": "byl"})
-        if meta_author and meta_author.get("content"):
-            author = meta_author["content"].replace("By", "").strip()
-            print(f"[meta] Author: {author}")
-
-        if not author:
-            possible_selectors = [
-                '.byline__name', '[rel="author"]',
-                'span.ssrcss-1pjc44v-Contributor',
-                'span.sc-801dd632-7.lasLGY'
-            ]
-            for selector in possible_selectors:
-                tag = soup.select_one(selector)
-                if tag and tag.get_text(strip=True):
-                    author = tag.get_text(strip=True)
-                    print(f"[selector: {selector}] Author: {author}")
-                    break
-
-        if not author:
-            for tag in soup.find_all(['span', 'div', 'p']):
-                text = tag.get_text(strip=True)
-                if "By " in text or (text and text.istitle() and len(text.split()) <= 3):
-                    print(f"Possible author span: {text}")
-                    author = text
-                    break
-
-        if not author:
-            print(f"Author missing for: {url}")
-
         return {
             "source": "BBC",
-            "title": title,
-            "summary": summary,
-            "published_date": published_date,
-            "author": author,
+            "title": extract_title(soup),
+            "summary": extract_summary(soup),
+            "published_date": extract_date(soup),
+            "author": extract_author(soup, url),
             "url": url,
-            "content": content
+            "content": extract_content(soup)
         }
+
     except Exception as e:
         print(f"Error scraping {url}: {e}")
         return None
+
+def fetch_html(url):
+    try:
+        return requests.get(url, headers=HEADERS, timeout=10)
+    except Exception as e:
+        print(f"Error accessing {url}: {e}")
+        return None
+
+def extract_title(soup):
+    return soup.find('h1').get_text(strip=True) if soup.find('h1') else None
+
+def extract_date(soup):
+    time_tag = soup.find('time')
+    return time_tag.get('datetime') if time_tag else None
+
+def extract_content(soup):
+    body = soup.find('article') or soup.find('main')
+    paragraphs = body.find_all('p') if body else []
+    return "\n".join(p.get_text(strip=True) for p in paragraphs)
+
+def extract_summary(soup):
+    content = extract_content(soup)
+    return content[:200] if content else None
+
+def extract_author(soup, url):
+    meta_author = soup.find("meta", {"name": "byl"})
+    if meta_author and meta_author.get("content"):
+        author = meta_author["content"].replace("By", "").strip()
+        print(f"[meta] Author: {author}")
+        return author
+
+    possible_selectors = [
+        '.byline__name', '[rel="author"]',
+        'span.ssrcss-1pjc44v-Contributor',
+        'span.sc-801dd632-7.lasLGY'
+    ]
+    for selector in possible_selectors:
+        tag = soup.select_one(selector)
+        if tag and tag.get_text(strip=True):
+            author = tag.get_text(strip=True)
+            print(f"[selector: {selector}] Author: {author}")
+            return author
+
+    for tag in soup.find_all(['span', 'div', 'p']):
+        text = tag.get_text(strip=True)
+        if "By " in text or (text and text.istitle() and len(text.split()) <= 3):
+            print(f"Possible author span: {text}")
+            return text
+
+    print(f"Author missing for: {url}")
+    return None
 
 def load_existing_data():
     if os.path.exists(OUTPUT_FILE):
@@ -143,15 +159,15 @@ def scrape_bbc_all():
 
     for section in SECTION_LINKS:
         print(f"Crawling section: {section}")
-        links = get_article_links(section, pages=10)
+        links = get_article_links(section, pages=25)
         for link in links:
             if link in existing_urls:
                 continue
             article = extract_article(link)
-            if article and article["author"]:
+            if article:
                 all_articles.append(article)
                 existing_urls.add(link)
-            time.sleep(random.uniform(1.5, 2.5))
+            time.sleep(random.uniform(1.5, 3.5))
     return all_articles
 
 def save_to_json(data):
