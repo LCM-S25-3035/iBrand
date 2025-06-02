@@ -10,7 +10,15 @@ from datetime import datetime, timedelta
 import time
 
 # ✅ Replace this with your actual NewsAPI key (in quotes)
-API_KEY = '647fc54de17f444d818a907b032d8ced'
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("647fc54de17f444d818a907b032d8ced")
+
+# Use API_KEY in your requests
+
 
 # Constants
 QUERY = 'news'  # You can change this to a specific topic like "technology", "finance", etc.
