@@ -27,17 +27,16 @@ RSS_FEEDS = [
     "https://www.aljazeera.com/xml/rss/all.xml?category=coronavirus-pandemic",
     "https://www.aljazeera.com/xml/rss/all.xml?category=investigations"
 ]
+
 OUTPUT_FILE = "aljazeera_articles.json"
 KAFKA_TOPIC = "real-news-aljazeera"
 KAFKA_SERVER = 'localhost:9092'
 
 def is_valid_url(url):
-    """Ensure URL is safe and well-formed."""
     parsed = urlparse(url)
     return all([parsed.scheme, parsed.netloc])
 
 def fetch_article_content(url):
-    """Fetch full article content using BeautifulSoup."""
     if not is_valid_url(url):
         logging.warning(f"Invalid URL skipped: {url}")
         return "Invalid URL"
@@ -46,21 +45,17 @@ def fetch_article_content(url):
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-
         soup = BeautifulSoup(response.text, 'html.parser')
         content_div = soup.find('div', class_='l-col l-col--8')
         if not content_div:
             return "Full content not found"
-
         paragraphs = content_div.find_all('p')
-        content = "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
-        return content if content else "Content empty"
+        return "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)) or "Content empty"
     except requests.RequestException as e:
         logging.error(f"Request error for {url}: {e}")
         return f"Error fetching content: {str(e)}"
 
 def load_existing_articles():
-    """Load already saved articles."""
     if os.path.exists(OUTPUT_FILE):
         try:
             with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
@@ -71,7 +66,6 @@ def load_existing_articles():
     return [], set()
 
 def build_article(entry):
-    """Build a structured article dictionary from RSS entry."""
     return {
         "url": entry.link,
         "source": "Al Jazeera",
@@ -83,7 +77,6 @@ def build_article(entry):
     }
 
 def fetch_articles():
-    """Main article fetching and publishing logic."""
     existing_articles, seen_links = load_existing_articles()
     new_articles = []
 
