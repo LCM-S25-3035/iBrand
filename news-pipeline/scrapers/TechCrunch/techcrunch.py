@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 from urllib.parse import urlparse
 from kafka import KafkaProducer
+from datetime import datetime
 import json
 import time
 import os
@@ -118,7 +119,21 @@ def scrape_single_article(page, url):
         author = (page.query_selector(".wp-block-tc23-author-card-name") or
                   page.query_selector(".article__byline a") or
                   page.query_selector(".river-byline__authors a"))
-        date = page.query_selector("time[datetime]")
+        date_element = page.query_selector("time")
+        visible_time_text = date_element.inner_text().strip() if date_element else ""
+
+        # Compare article date with today
+        try:
+            article_date = datetime.strptime(visible_time_text, "%B %d, %Y").date()
+            today = datetime.today().date()
+
+            if article_date < today:
+                print(f"Skipping old article from {article_date}: {url}")
+                return "STOP"
+        except Exception as e:
+            print(f"Failed to parse article date ({visible_time_text}): {e}")
+            return "STOP"
+
         summary = page.query_selector("p#speakable-summary")
         paragraphs = page.query_selector_all("div.entry-content p.wp-block-paragraph")
 
@@ -132,7 +147,7 @@ def scrape_single_article(page, url):
             "source": urlparse(url).hostname.replace("www.", ""),
             "title": title.inner_text().strip() if title else "Unknown",
             "author": author.inner_text().strip() if author else "Unknown",
-            "published_at": date.get_attribute("datetime") if date else "Unknown",
+            "published_at": date_element.get_attribute("datetime") if date_element else "Unknown",
             "summary": summary.inner_text().strip() if summary else "Not found",
             "content": content
         }
@@ -165,6 +180,9 @@ def scrape_multiple_articles(limit=MAX_ARTICLES):
         for i, link in enumerate(new_links, 1):
             print(f"[{i}/{len(new_links)}] Scraping: {link}")
             article = scrape_single_article(page, link)
+            if article == "STOP":
+                print("Encountered old article. Stopping scrape.")
+                break
             if article and article["url"] not in seen_urls:
                 send_to_kafka(producer, KAFKA_TOPIC, article)
                 new_articles.append(article)
