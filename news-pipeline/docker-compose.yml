@@ -109,8 +109,86 @@ services:
       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,org.mongodb.spark:mongo-spark-connector_2.12:10.2.0
       /app/consumer.py
 
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key"
+      TZ: UTC
+      PYTHONPATH: /opt/airflow
+    entrypoint: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create --username airflow --password airflow --firstname Air --lastname Flow --role Admin --email admin@example.com
+      "
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./kafka_app:/opt/airflow/kafka_app
+      - ./scrapers:/opt/airflow/scrapers
+
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-webserver
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key"
+      TZ: UTC
+      PYTHONPATH: /opt/airflow
+    ports:
+      - "8088:8080"
+    command: webserver
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./kafka_app:/opt/airflow/kafka_app
+      - ./scrapers:/opt/airflow/scrapers 
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-scheduler
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_super_secret_key"
+      TZ: UTC
+      PYTHONPATH: /opt/airflow
+    command: scheduler
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./kafka_app:/opt/airflow/kafka_app
+      - ./scrapers:/opt/airflow/scrapers 
 
 
 volumes:
   mongo_data:
   es_data:
+  postgres_data:

@@ -1,0 +1,16 @@
+FROM apache/airflow:2.9.0
+
+USER root
+
+# Install system dependencies needed by Playwright
+RUN apt-get update && apt-get install -y \
+    wget gnupg ca-certificates curl unzip fonts-liberation \
+    libnss3 libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxcomposite1 \
+    libxdamage1 libxrandr2 libasound2 libxss1 libxtst6 libgbm1 \
+    libxshmfence1 libglu1-mesa && \
+    apt-get clean
+
+USER airflow
+
+# ✅ Only install Python packages and browsers (NO --with-deps here)
+RUN pip install --no-cache-dir playwright && playwright install

@@ -6,6 +6,11 @@ from scrapers.bbc_trend.bbc import scrape_bbc_full_articles
 from scrapers.techcrunch.techcrunch import scrape_multiple_articles
 from kafka_app.config import KAFKA_TOPIC, KAFKA_BOOTSTRAP_SERVERS
 
+import sys
+import os
+
+sys.path.append('/opt/airflow') 
+
 
 def send_articles_to_kafka():
     print("Scraping BBC articles...")
