@@ -2,18 +2,37 @@ import asyncio
 import json
 import os
 from datetime import datetime
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
+from kafka import KafkaProducer
 
 OUTPUT_FILE = "vogue_fashion_full.json"
 RESET_FLAG_FILE = ".vogue_scrape_reset_done"
 MAX_PAGES = 50
 
+KAFKA_TOPIC = "vogue-articles"
+KAFKA_SERVER = os.getenv("KAFKA_SERVER", "kafka:9092")
+
+def create_producer():
+    return KafkaProducer(
+        bootstrap_servers=KAFKA_SERVER,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+
+def send_to_kafka(producer, topic, article_data):
+    try:
+        producer.send(topic, article_data)
+        producer.flush()
+        print(f"📤 Sent to Kafka: {article_data['title']}")
+    except Exception as e:
+        print(f"Kafka send failed: {e}")
+
 async def scrape_vogue():
     articles = []
     seen_urls = set()
     current_page = 1
+    producer = create_producer()
 
-    # ✅ ONE-TIME RESET: only delete output if marker file doesn't exist
     if not os.path.exists(RESET_FLAG_FILE):
         print("🔁 First run: Resetting JSON and creating marker...")
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
@@ -24,7 +43,6 @@ async def scrape_vogue():
     else:
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
             existing_articles = json.load(f)
-
     seen_urls = {a["url"] for a in existing_articles}
 
     async with async_playwright() as p:
@@ -39,7 +57,6 @@ async def scrape_vogue():
 
             article_cards = await page.query_selector_all('a[data-recirc-pattern="summary-item"]')
             print(f"Found {len(article_cards)} articles on page {current_page}")
-
             new_on_page = 0
 
             for card in article_cards:
@@ -49,9 +66,8 @@ async def scrape_vogue():
                     if not url or not url.startswith("/article"):
                         continue
                     full_url = f"https://www.vogue.com{url}"
-
                     if full_url in seen_urls:
-                        continue  # skip duplicates
+                        continue
                     seen_urls.add(full_url)
 
                     title_el = await card.query_selector(".summary-item__hed")
@@ -79,18 +95,19 @@ async def scrape_vogue():
                     content_tags = await article_page.query_selector_all("article p")
                     content = "\n".join([await p.inner_text() for p in content_tags if await p.inner_text() != ""])
 
-                    articles.append({
+                    article_data = {
                         "url": full_url,
-                        "source": "Vogue",
+                        "source": urlparse(full_url).hostname.replace("www.", ""),
                         "title": title.strip(),
                         "author": author.strip(),
                         "published_at": published_at,
                         "summary": summary.strip(),
                         "content": content.strip()
-                    })
+                    }
 
+                    send_to_kafka(producer, KAFKA_TOPIC, article_data)
+                    articles.append(article_data)
                     new_on_page += 1
-                    print(f"✅ Scraped: {title.strip()}")
 
                 except Exception as e:
                     print(f"⚠️ Error scraping article: {e}")
