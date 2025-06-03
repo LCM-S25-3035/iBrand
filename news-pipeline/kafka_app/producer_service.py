@@ -4,7 +4,10 @@ from kafka import KafkaProducer
 import json
 from scrapers.bbc_trend.bbc import scrape_bbc_full_articles
 from scrapers.techcrunch.techcrunch import scrape_multiple_articles
+from scrapers.sportingNews.sporting_news_scrape import main as sporting_main
 from kafka_app.config import KAFKA_TOPIC, KAFKA_BOOTSTRAP_SERVERS
+import asyncio
+
 
 
 def send_articles_to_kafka():
@@ -30,6 +33,9 @@ def send_articles_to_kafka():
     print("Scraping TechCrunch Articles.")
     scrape_multiple_articles()
     print("All TechCrunch articles sent!")
+    print("Scraping Sporting News Article.")
+    asyncio.run(sporting_main()) 
+    print("All Sporting News Article sent")
 
 
 if __name__ == "__main__":

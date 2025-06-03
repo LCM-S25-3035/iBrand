@@ -3,8 +3,10 @@ import json
 import re
 from datetime import datetime
 from playwright.async_api import async_playwright
+from kafka import KafkaProducer
 from transformers import pipeline
 import torch
+import os
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 BASE_URL = "https://www.sportingnews.com"
@@ -16,6 +18,24 @@ CONCURRENT_PAGES = 10
 SUMMARY_BATCH_SIZE = 8
 MAX_PAGES_PER_SECTION = 50
 OUTPUT_FILE = "sportingnews_all_categories_articles.json"
+KAFKA_TOPIC = "sportingnews-article"
+KAFKA_SERVER = os.getenv("KAFKA_SERVER", "kafka:9092")
+
+# Setup Kafka producer
+def create_producer():
+    return KafkaProducer(
+        bootstrap_servers=KAFKA_SERVER,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+
+def send_to_kafka(producer, topic, article_data):
+    try:
+        producer.send(topic, article_data)
+        producer.flush()
+        print(f"Sent to Kafka: {article_data['title']}")
+    except Exception as e:
+        print(f"Kafka send failed: {e}")
+
 
 # ─── Summarizer Setup ─────────────────────────────────────────────────────────
 device = 0 if torch.cuda.is_available() else -1
@@ -157,6 +177,9 @@ async def main():
 
     existing_urls = set(article["url"] for article in existing_articles)
 
+    # Setup Kafka producer
+    producer = create_producer()
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
@@ -177,6 +200,10 @@ async def main():
         print("Generating summaries...")
         await add_summaries(new_articles)
 
+        # Send articles to Kafka
+        for article in new_articles:
+            send_to_kafka(producer, KAFKA_TOPIC, article)
+
         combined_articles = existing_articles + new_articles
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
@@ -184,6 +211,7 @@ async def main():
 
         print(f"Done. Total saved articles: {len(combined_articles)}")
         await browser.close()
+
 
 
 # ─── Entry Point ──────────────────────────────────────────────────────────────
