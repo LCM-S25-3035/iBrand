@@ -12,11 +12,12 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
 
+
 OUTPUT_FILE = "news-pipeline/scrapers/BBC/bbc_all_articles.json"
 KAFKA_TOPIC = "bbc-news-stream"
 
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers='kafka:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
@@ -178,6 +179,7 @@ def scrape_bbc_all():
                 all_articles.append(article)
                 existing_urls.add(link)
                 producer.send(KAFKA_TOPIC, article)
+                print(f"[Kafka] Sent: {article['title']}")
             time.sleep(random.uniform(1.5, 3.0))
     return all_articles
 
@@ -185,6 +187,13 @@ def save_to_json(data):
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=2)
+
+def main():
+    print("🚀 Starting BBC Kafka Producer...")
+    articles = scrape_bbc_all()
+    save_to_json(articles)
+    print(f"✅ Done! Scraped and sent {len(articles)} articles.")
+
 
 def main():
     articles = scrape_bbc_all()

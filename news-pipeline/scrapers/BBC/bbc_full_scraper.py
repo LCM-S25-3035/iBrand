@@ -6,12 +6,19 @@ import json
 import os
 from urllib.parse import urljoin
 from datetime import datetime
+from kafka import KafkaProducer
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
 
 OUTPUT_FILE = "news-pipeline/scrapers/BBC/bbc_all_articles.json"
+KAFKA_TOPIC = "bbc-news-stream"
+
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
 
 SECTION_LINKS = [
     "https://www.bbc.com/news/topics/c2vdnvdg6xxt",
@@ -113,7 +120,6 @@ def extract_author(soup):
         tag = soup.select_one(selector)
         if tag:
             return tag.get_text(strip=True)
-
     return None
 
 def is_recent(published_date):
@@ -171,6 +177,7 @@ def scrape_bbc_all():
             if article and is_recent(article.get("published_date")):
                 all_articles.append(article)
                 existing_urls.add(link)
+                producer.send(KAFKA_TOPIC, article)
             time.sleep(random.uniform(1.5, 3.0))
     return all_articles
 
