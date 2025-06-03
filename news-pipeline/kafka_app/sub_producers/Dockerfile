@@ -2,7 +2,8 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY . /app/
+# Safe to copy everything now, because .dockerignore excludes sensitive/unwanted files
+COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
