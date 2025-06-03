@@ -195,10 +195,6 @@ def main():
     print(f"✅ Done! Scraped and sent {len(articles)} articles.")
 
 
-def main():
-    articles = scrape_bbc_all()
-    save_to_json(articles)
-    print(f"Done! Scraped {len(articles)} total articles.")
 
 if __name__ == '__main__':
     main()
