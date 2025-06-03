@@ -8,18 +8,21 @@ from urllib.parse import urljoin
 from datetime import datetime
 from kafka import KafkaProducer
 
+# Constants
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
-
 OUTPUT_FILE = "news-pipeline/scrapers/BBC/bbc_all_articles.json"
 KAFKA_TOPIC = "bbc-news-stream"
+BASE_URL = "https://www.bbc.com"
 
+# Kafka Producer
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
+# BBC Sections to Scrape
 SECTION_LINKS = [
     "https://www.bbc.com/news/topics/c2vdnvdg6xxt",
     "https://www.bbc.com/news/war-in-ukraine",
@@ -67,60 +70,52 @@ SECTION_LINKS = [
     "https://www.bbc.com/future-planet/green-living"
 ]
 
-def get_article_links(section_url, pages=2):
-    all_links = set()
-    for page in range(1, pages + 1):
-        url = section_url if page == 1 else f"{section_url}?page={page}"
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=10)
-            soup = BeautifulSoup(res.text, 'html.parser')
-            for a_tag in soup.find_all('a', href=True):
-                href = a_tag['href']
-                if href.startswith("/news") or href.startswith("/sport"):
-                    full_url = urljoin("https://www.bbc.com", href)
-                    all_links.add(full_url)
-        except requests.RequestException as err:
-            print(f"Error accessing {url}: {err}")
-    return list(all_links)
-
-def fetch_html(url):
+# Reusable Helpers
+def get_soup(url):
     try:
-        return requests.get(url, headers=HEADERS, timeout=10)
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        return BeautifulSoup(response.text, 'html.parser')
     except requests.RequestException as err:
         print(f"Error fetching {url}: {err}")
         return None
 
-def extract_title(soup):
-    title_tag = soup.find('h1')
-    return title_tag.get_text(strip=True) if title_tag else None
+def extract_tag_text(soup, selector, attr=None):
+    tag = soup.select_one(selector)
+    if not tag:
+        return None
+    return tag.get(attr).strip() if attr else tag.get_text(strip=True)
 
-def extract_date(soup):
-    time_tag = soup.find('time')
-    return time_tag.get('datetime') if time_tag else None
+def delay(min_sec=1.5, max_sec=3.0):
+    time.sleep(random.uniform(min_sec, max_sec))
 
-def extract_content(soup):
-    body_tag = soup.find('article') or soup.find('main')
-    if not body_tag:
-        return ""
-    return "\n".join(p.get_text(strip=True) for p in body_tag.find_all('p'))
+def read_json(path):
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print("Warning: Failed to decode existing JSON.")
+    return []
 
-def extract_summary(content):
-    return content[:200] if content else None
+def write_json(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-def extract_author(soup):
-    meta_author = soup.find("meta", {"name": "byl"})
-    if meta_author and meta_author.get("content"):
-        return meta_author["content"].replace("By", "").strip()
-
-    selectors = [
-        '.byline__name', '[rel="author"]',
-        'span.ssrcss-1pjc44v-Contributor', 'span.sc-801dd632-7.lasLGY'
-    ]
-    for selector in selectors:
-        tag = soup.select_one(selector)
-        if tag:
-            return tag.get_text(strip=True)
-    return None
+# Article Utilities
+def get_article_links(section_url, pages=2):
+    all_links = set()
+    for page in range(1, pages + 1):
+        page_url = section_url if page == 1 else f"{section_url}?page={page}"
+        soup = get_soup(page_url)
+        if not soup:
+            continue
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag['href']
+            if href.startswith("/news") or href.startswith("/sport"):
+                full_url = urljoin(BASE_URL, href)
+                all_links.add(full_url)
+    return list(all_links)
 
 def is_recent(published_date):
     if published_date:
@@ -132,16 +127,26 @@ def is_recent(published_date):
     return True
 
 def extract_article(url):
-    res = fetch_html(url)
-    if not res:
+    soup = get_soup(url)
+    if not soup:
         return None
 
-    soup = BeautifulSoup(res.text, 'html.parser')
-    title = extract_title(soup)
-    published_date = extract_date(soup)
-    content = extract_content(soup)
-    summary = extract_summary(content)
-    author = extract_author(soup)
+    title = extract_tag_text(soup, 'h1')
+    published_date = extract_tag_text(soup, 'time', attr='datetime')
+    content_block = soup.find('article') or soup.find('main')
+    content = "\n".join(p.get_text(strip=True) for p in content_block.find_all('p')) if content_block else ""
+    summary = content[:200] if content else None
+
+    author = None
+    meta_author = soup.find("meta", {"name": "byl"})
+    if meta_author and meta_author.get("content"):
+        author = meta_author["content"].replace("By", "").strip()
+    else:
+        selectors = ['.byline__name', '[rel="author"]', 'span.ssrcss-1pjc44v-Contributor', 'span.sc-801dd632-7.lasLGY']
+        for selector in selectors:
+            author = extract_tag_text(soup, selector)
+            if author:
+                break
 
     return {
         "source": "BBC",
@@ -153,22 +158,14 @@ def extract_article(url):
         "content": content
     }
 
-def load_existing_data():
-    if os.path.exists(OUTPUT_FILE):
-        try:
-            with open(OUTPUT_FILE, 'r', encoding='utf-8') as file:
-                return json.load(file)
-        except json.JSONDecodeError:
-            print("Warning: Failed to decode existing JSON. Starting fresh.")
-    return []
-
+# Main Scraper Logic
 def scrape_bbc_all():
-    existing_articles = load_existing_data()
-    existing_urls = {article['url'] for article in existing_articles if 'url' in article}
+    existing_articles = read_json(OUTPUT_FILE)
+    existing_urls = {a['url'] for a in existing_articles if 'url' in a}
     all_articles = existing_articles.copy()
 
     for section in SECTION_LINKS:
-        print(f"Crawling section: {section}")
+        print(f"Scraping section: {section}")
         links = get_article_links(section)
         for link in links:
             if link in existing_urls:
@@ -178,18 +175,13 @@ def scrape_bbc_all():
                 all_articles.append(article)
                 existing_urls.add(link)
                 producer.send(KAFKA_TOPIC, article)
-            time.sleep(random.uniform(1.5, 3.0))
+            delay()
     return all_articles
-
-def save_to_json(data):
-    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=2)
 
 def main():
     articles = scrape_bbc_all()
-    save_to_json(articles)
-    print(f"Done! Scraped {len(articles)} total articles.")
+    write_json(OUTPUT_FILE, articles)
+    print(f"Done! Total articles scraped: {len(articles)}")
 
 if __name__ == '__main__':
     main()
