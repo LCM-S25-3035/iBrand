@@ -13,4 +13,4 @@ RUN apt-get update && apt-get install -y \
 USER airflow
 
 # ✅ Only install Python packages and browsers (NO --with-deps here)
-RUN pip install --no-cache-dir playwright && playwright install
+RUN pip install --no-cache-dir playwright pymongo && playwright install
