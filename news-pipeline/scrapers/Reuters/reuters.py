@@ -1,6 +1,6 @@
 import asyncio
 from playwright.async_api import async_playwright
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 
@@ -8,7 +8,6 @@ CATEGORIES = [
     "world", "business", "legal", "markets", "breakingviews",
     "technology", "investigates", "lifestyle", "sports"
 ]
-
 BASE_URL = "https://www.reuters.com"
 
 async def scrape_category(context, category):
@@ -55,11 +54,12 @@ async def scrape_category(context, category):
                 "category": category,
                 "title": title.strip(),
                 "url": href,
-                "scraped_at": datetime.utcnow().isoformat(),
+                "scraped_at": datetime.now(timezone.utc).isoformat(),
                 "content": body.strip()
             })
 
             await new_page.close()
+
         except Exception as e:
             print(f"❌ Error in article from {category}: {e}")
 
@@ -78,7 +78,6 @@ async def scrape_reuters():
         ))
 
         all_articles = []
-
         os.makedirs("scrape/Reuters/output/", exist_ok=True)
 
         for cat in CATEGORIES:
@@ -100,3 +99,4 @@ async def scrape_reuters():
 
 # Run the script
 asyncio.run(scrape_reuters())
+
