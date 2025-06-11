@@ -1,3 +1,5 @@
-kafka-python
 requests
 beautifulsoup4
+kafka-python
+pymongo
+python-dotenv

@@ -12,7 +12,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
 
-
 OUTPUT_FILE = "news-pipeline/scrapers/BBC/bbc_all_articles.json"
 KAFKA_TOPIC = "bbc-news-stream"
 
@@ -164,6 +163,7 @@ def load_existing_data():
     return []
 
 def scrape_bbc_all():
+    print("🟡 scrape_bbc_all() started...")
     existing_articles = load_existing_data()
     existing_urls = {article['url'] for article in existing_articles if 'url' in article}
     all_articles = existing_articles.copy()
@@ -171,16 +171,21 @@ def scrape_bbc_all():
     for section in SECTION_LINKS:
         print(f"Crawling section: {section}")
         links = get_article_links(section)
+        print(f"🔗 Found {len(links)} links")
         for link in links:
             if link in existing_urls:
                 continue
+            print(f"🔍 Extracting: {link}")
             article = extract_article(link)
             if article and is_recent(article.get("published_date")):
+                print(f"📤 Sending to Kafka: {article.get('title', 'No Title')}")
                 all_articles.append(article)
                 existing_urls.add(link)
                 producer.send(KAFKA_TOPIC, article)
-                print(f"[Kafka] Sent: {article['title']}")
+            else:
+                print(f"❌ Skipped: not recent or missing content")
             time.sleep(random.uniform(1.5, 3.0))
+    print(f"✅ Total articles processed this run: {len(all_articles) - len(existing_articles)}")
     return all_articles
 
 def save_to_json(data):
@@ -189,12 +194,9 @@ def save_to_json(data):
         json.dump(data, file, ensure_ascii=False, indent=2)
 
 def main():
-    print("🚀 Starting BBC Kafka Producer...")
     articles = scrape_bbc_all()
     save_to_json(articles)
-    print(f"✅ Done! Scraped and sent {len(articles)} articles.")
-
-
+    print(f"Done! Scraped {len(articles)} total articles.")
 
 if __name__ == '__main__':
     main()

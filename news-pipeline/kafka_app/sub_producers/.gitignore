@@ -18,3 +18,17 @@ bbc_all_articles.json
 
 # Ignore env files if any
 .env
+
+
+# Ignore environment and Docker setup files
+.env
+Dockerfile
+docker-compose.yml
+requirements.txt
+
+# Python junk
+__pycache__/
+*.pyc
+
+# macOS system file
+.DS_Store
