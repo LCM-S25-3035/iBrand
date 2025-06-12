@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import argparse
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Load environment variables
 load_dotenv()
@@ -58,17 +58,16 @@ def seed_articles(file_path, db_name="articles-db", collection_name="articles", 
     cleaned_data = []
     for article in data:
         cleaned_article = clean_article(article)
-        cleaned_article["seeded_at"] = datetime.utcnow().isoformat()
+        # Use timezone-aware datetime instead of datetime.utcnow()
+        cleaned_article["seeded_at"] = datetime.now(timezone.utc).isoformat()
         cleaned_data.append(cleaned_article)
 
     try:
         client = MongoClient(mongo_uri)
         db = client[db_name]
         collection = db[collection_name]
-
         # Ensure unique index on 'url' to avoid duplicates
         collection.create_index("url", unique=True)
-
         result = collection.insert_many(cleaned_data, ordered=False)
         print(f"Inserted {len(result.inserted_ids)} cleaned articles into '{db_name}.{collection_name}'.")
     except BulkWriteError as bwe:
@@ -83,7 +82,6 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--db", default="articles-db", help="MongoDB database name.")
     parser.add_argument("-c", "--collection", default="articles", help="MongoDB collection name.")
     parser.add_argument("-u", "--uri", default="mongodb://localhost:27017", help="MongoDB URI.")
-
     args = parser.parse_args()
 
     seed_articles(
