@@ -7,6 +7,10 @@ from bson.errors import InvalidId
 import os
 from dotenv import load_dotenv
 
+# === Constants for repeated strings ===
+INVALID_OBJECT_ID_MSG = "Invalid ObjectId format"
+POST_NOT_FOUND_MSG = "Post not found"
+
 # Load env vars
 load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
@@ -65,27 +69,27 @@ def get_all_posts():
 @app.get("/posts/{post_id}", response_model=ArticleInDB)
 def get_post(post_id: str):
     if not is_valid_object_id(post_id):
-        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+        raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
     post = collection.find_one({"_id": ObjectId(post_id)})
     if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
     return serialize(post)
 
 @app.put("/posts/{post_id}", response_model=ArticleInDB)
 def update_post(post_id: str, post: Article):
     if not is_valid_object_id(post_id):
-        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+        raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
     result = collection.update_one({"_id": ObjectId(post_id)}, {"$set": post.dict()})
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
     updated_post = collection.find_one({"_id": ObjectId(post_id)})
     return serialize(updated_post)
 
 @app.delete("/posts/{post_id}")
 def delete_post(post_id: str):
     if not is_valid_object_id(post_id):
-        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+        raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
     result = collection.delete_one({"_id": ObjectId(post_id)})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
     return {"message": "Post deleted successfully"}
