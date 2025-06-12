@@ -33,7 +33,6 @@ def fetch_articles(limit_per_page=100, max_articles=500):
         if response.status_code != 200:
             print(f"❌ Error fetching data: {response.status_code}")
             break
-
         data = response.json()
         batch = data.get('data', [])
         if not batch:
@@ -70,8 +69,10 @@ def get_article_content(url):
         if len(article.text) > 200:
             return article.text
         raise ValueError("Article too short, fallback needed")
-    except:
-        print(f"⚠️ Newspaper3k failed for {url}")
+    except Exception as e:
+        if isinstance(e, (SystemExit, KeyboardInterrupt)):
+            raise
+        print(f"⚠️ Newspaper3k failed for {url} — Error: {e}")
         print(f"🔁 Falling back to Playwright for {url}")
         return fetch_with_playwright(url)
 
@@ -79,18 +80,14 @@ def get_article_content(url):
 def process_and_save():
     articles = fetch_articles()
     final_data = []
-
     for article in articles:
         url = article.get('url')
         source = article.get('source', '').lower()
-
         if not url or source in EXCLUDED_SOURCES:
             continue
-
         content = get_article_content(url)
         if not content or len(content) < 200:
             continue
-
         processed = {
             "source": article.get('source'),
             "title": article.get('title'),
@@ -101,31 +98,23 @@ def process_and_save():
             "content": content,
             "origin": "mediastack"
         }
-
         print(f"✅ Scraped: {processed['title'][:60]}... ({len(content)} chars)")
         final_data.append(processed)
         time.sleep(1)
-
     # === 7. Save: Append only NEW articles ===
     filename = "newFiltered_mediastack_articles.json"
-
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
             existing_data = json.load(f)
     else:
         existing_data = []
-
     existing_urls = {item['url'] for item in existing_data}
     new_articles = [item for item in final_data if item['url'] not in existing_urls]
-
     combined_data = existing_data + new_articles
-
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(combined_data, f, indent=4, ensure_ascii=False)
-
     print(f"\n💾 Appended {len(new_articles)} new articles to '{filename}' (Total: {len(combined_data)}).")
 
 # === 8. Run Script ===
 if __name__ == "__main__":
     process_and_save()
- 
