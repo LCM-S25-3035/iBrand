@@ -12,10 +12,11 @@ producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
+
 TOPIC_NAME = 'scraped-articles'
 
 # === 2. API Config ===
-API_KEY = 'XXXXXXXXXXXXXXXXXXXXXXXXXXX' 
+API_KEY = 'XXXXXXXXXXXXXXXXXXXXXXXXXXX'  # Replace with your real key
 BASE_URL = 'http://api.mediastack.com/v1/news'
 
 # === 3. Excluded sources ===
@@ -41,7 +42,6 @@ def fetch_articles(limit_per_page=100, max_articles=500):
         if response.status_code != 200:
             print(f"❌ Error fetching data: {response.status_code}")
             break
-
         data = response.json()
         batch = data.get('data', [])
         if not batch:
@@ -78,8 +78,10 @@ def get_article_content(url):
         if len(article.text) > 200:
             return article.text
         raise ValueError("Article too short, fallback needed")
-    except:
-        print(f"⚠️ Newspaper3k failed for {url}")
+    except Exception as e:
+        if isinstance(e, (SystemExit, KeyboardInterrupt)):
+            raise
+        print(f"⚠️ Newspaper3k failed for {url} — Error: {e}")
         print(f"🔁 Falling back to Playwright for {url}")
         return fetch_with_playwright(url)
 
@@ -87,18 +89,14 @@ def get_article_content(url):
 def process_and_send_to_kafka():
     articles = fetch_articles()
     new_count = 0
-
     for article in articles:
         url = article.get('url')
         source = article.get('source', '').lower()
-
         if not url or source in EXCLUDED_SOURCES:
             continue
-
         content = get_article_content(url)
         if not content or len(content) < 200:
             continue
-
         processed = {
             "source": article.get('source'),
             "title": article.get('title'),
@@ -109,13 +107,11 @@ def process_and_send_to_kafka():
             "content": content,
             "origin": "mediastack"
         }
-
         # === Send to Kafka ===
         producer.send(TOPIC_NAME, processed)
         print(f"📤 Sent to Kafka: {processed['title'][:60]}...")
         new_count += 1
         time.sleep(1)
-
     producer.flush()
     print(f"\n✅ Total {new_count} new articles sent to Kafka topic '{TOPIC_NAME}'.")
 
