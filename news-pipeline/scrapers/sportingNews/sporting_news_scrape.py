@@ -36,7 +36,6 @@ def send_to_kafka(producer, topic, article_data):
     except Exception as e:
         print(f"Kafka send failed: {e}")
 
-
 # ─── Summarizer Setup ─────────────────────────────────────────────────────────
 device = 0 if torch.cuda.is_available() else -1
 summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", device=device)
@@ -51,6 +50,17 @@ async def summarize_batch(texts):
 
 # ─── Extract Article Details ──────────────────────────────────────────────────
 async def extract_article_data(context, url, retries=3):
+    async def get_author(page):
+        author_el = await page.query_selector('[data-testid="article-author-list--name"]')
+        if author_el:
+            author = await author_el.inner_text()
+            return author.strip() if author else None
+        meta_author = await page.query_selector('meta[name="author"]')
+        if meta_author:
+            author = await meta_author.get_attribute("content")
+            return author.strip() if author else None
+        return None
+
     for attempt in range(retries):
         page = await context.new_page()
         try:
@@ -62,29 +72,31 @@ async def extract_article_data(context, url, retries=3):
                 return None
 
             paragraphs = await content_div.query_selector_all("p")
-            content = "\n".join([await p.inner_text() for p in paragraphs if await p.inner_text()])
-            if not content.strip():
+            texts = []
+            for p in paragraphs:
+                text = await p.inner_text()
+                if text and text.strip():
+                    texts.append(text.strip())
+            content = "\n".join(texts)
+
+            if not content:
                 return None
 
-            title = await page.title()
+            title = (await page.title()).strip()
+
             published = await page.query_selector("time")
             published_date = await published.get_attribute("datetime") if published else None
-            author_el = await page.query_selector('[data-testid="article-author-list--name"]')
-            if author_el:
-                author = await author_el.inner_text()
-            else:
-                meta_author = await page.query_selector('meta[name="author"]')
-                author = await meta_author.get_attribute("content") if meta_author else None
 
+            author = await get_author(page)
 
             return {
                 "source": "SportingNews",
-                "title": title.strip(),
+                "title": title,
                 "summary": None,
                 "published_date": published_date,
-                "author": author.strip() if author else None,
+                "author": author,
                 "url": url,
-                "content": content.strip(),
+                "content": content,
             }
 
         except Exception as e:
@@ -153,7 +165,6 @@ async def process_articles(urls, context, max_concurrent):
     await asyncio.gather(*tasks)
     return results
 
-
 # ─── Add Summaries to Articles ────────────────────────────────────────────────
 async def add_summaries(articles):
     for i in range(0, len(articles), SUMMARY_BATCH_SIZE):
@@ -162,9 +173,6 @@ async def add_summaries(articles):
         summaries = await summarize_batch(texts)
         for j, summary in enumerate(summaries):
             batch[j]["summary"] = summary.strip()
-
-# ─── Main Function ────────────────────────────────────────────────────────────
-import os
 
 # ─── Main Function ────────────────────────────────────────────────────────────
 async def main():
@@ -211,8 +219,6 @@ async def main():
 
         print(f"Done. Total saved articles: {len(combined_articles)}")
         await browser.close()
-
-
 
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
