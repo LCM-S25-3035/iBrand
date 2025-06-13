@@ -37,43 +37,6 @@ def serialize(post) -> dict:
 
 # === CRUD Endpoints ===
 
-# === Implemented filters and pagination in GET /posts/ endpoint ===
-@app.post("/posts/", response_model=PostInDB)
-def create_post(post: Post):
-    result = collection.insert_one(post.dict())
-    new_post = collection.find_one({"_id": result.inserted_id})
-    return serialize(new_post)
-
-@app.get("/posts/", response_model=List[PostInDB])
-def get_all_posts(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, le=100),
-    author: Optional[str] = None,
-    keyword: Optional[str] = None
-):
-    filters = {}
-
-    if author:
-        filters["author"] = {"$regex": author, "$options": "i"}
-
-    if keyword:
-        filters["$or"] = [
-            {"title": {"$regex": keyword, "$options": "i"}},
-            {"content": {"$regex": keyword, "$options": "i"}}
-        ]
-
-    skip = (page - 1) * limit
-    total = collection.count_documents(filters)
-    cursor = collection.find(filters).skip(skip).limit(limit)
-    results = [serialize(post) for post in cursor]
-
-    return {
-        "results": results,
-        "page": page,
-        "limit": limit,
-        "total": total
-    }
-
 
 @app.get("/posts/{post_id}", response_model=PostInDB)
 def get_post(post_id: str):
