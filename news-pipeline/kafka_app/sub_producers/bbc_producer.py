@@ -1,6 +1,3 @@
-print("📌 Script started (TOP LEVEL)")
-
-
 import requests
 from bs4 import BeautifulSoup
 import time
@@ -10,8 +7,6 @@ import os
 from urllib.parse import urljoin
 from datetime import datetime
 from kafka import KafkaProducer
-
-
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
@@ -193,12 +188,11 @@ def save_to_json(data):
         json.dump(data, file, ensure_ascii=False, indent=2)
 
 def main():
-    print("🚀 Starting BBC Scraper...")
+    print("Starting BBC Scraper...")
     articles = scrape_bbc_all()
     print(f"📰 Total articles scraped: {len(articles)}")
     save_to_json(articles)
-    print("✅ Finished scraping and saving to JSON.")
-
+    print("Finished scraping and saving to JSON.")
 
 if __name__ == '__main__':
     main()
