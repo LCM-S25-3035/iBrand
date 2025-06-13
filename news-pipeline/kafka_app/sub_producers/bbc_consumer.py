@@ -1,29 +1,41 @@
-import os, json, logging
 from kafka import KafkaConsumer
 from pymongo import MongoClient
-from dotenv import load_dotenv
+import json
 
-load_dotenv()
-logging.basicConfig(level=logging.INFO)
+# Kafka config
+KAFKA_TOPIC = "bbc-news-stream"
+KAFKA_BOOTSTRAP_SERVER = "kafka:9092"
 
-mongo_uri = os.getenv("MONGO_URI")
-mongo_db = os.getenv("MONGO_DB")
+# MongoDB config
+MONGO_URI = "mongodb://host.docker.internal:27017"
+MONGO_DB = "news"
+MONGO_COLLECTION = "bbc_articles"
 
-client = MongoClient(mongo_uri)
-db = client[mongo_db]
-collection = db["bbc_articles"]
+# MongoDB connection
+client = MongoClient(MONGO_URI)
+collection = client[MONGO_DB][MONGO_COLLECTION]
 
+# Connect to Kafka
 consumer = KafkaConsumer(
-    "bbc-news-stream",
-    bootstrap_servers="kafka:9092",
-    value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-    auto_offset_reset="earliest",
+    KAFKA_TOPIC,
+    bootstrap_servers=KAFKA_BOOTSTRAP_SERVER,
+    auto_offset_reset='earliest',
+    group_id='bbc-consumer-group',
     enable_auto_commit=True,
-    group_id="bbc-consumer-group"
+    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-logging.info("Listening for messages...")
+print("✅ Kafka consumer started. Waiting for messages...")
+
+# Consume messages
 for message in consumer:
-    article = message.value
-    collection.insert_one(article)
-    logging.info(f"Inserted: {article.get('title', 'No Title')}")
+    try:
+        article = message.value
+        print(f"📥 Received message: {json.dumps(article)[:100]}...")
+        if collection.count_documents({'url': article['url']}, limit=1) == 0:
+            collection.insert_one(article)
+            print(f"✅ Inserted: {article['title']}")
+        else:
+            print(f"⚠️ Skipped duplicate: {article['title']}")
+    except Exception as e:
+        print(f"❌ Error processing message: {e}")
