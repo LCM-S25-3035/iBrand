@@ -5,11 +5,14 @@ from dotenv import load_dotenv
 import argparse
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
-from datetime import datetime
+from datetime import datetime, timezone
 
-# Load environment variables
+# ─── Constants ────────────────────────────────────────────────────────────────
+DEFAULT_MONGO_URI = "mongodb://localhost:27017"
+
+# ─── Load environment variables ───────────────────────────────────────────────
 load_dotenv()
-mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+mongo_uri = os.getenv("MONGO_URI", DEFAULT_MONGO_URI)
 
 def clean_newlines(text):
     """
@@ -40,7 +43,7 @@ def clean_article(article):
             cleaned_article[key] = value
     return cleaned_article
 
-def seed_articles(file_path, db_name="articles-db", collection_name="articles", mongo_uri="mongodb://localhost:27017"):
+def seed_articles(file_path, db_name="articles-db", collection_name="articles", mongo_uri=DEFAULT_MONGO_URI):
     """
     Loads articles from a JSON file, cleans them, and inserts them into MongoDB.
     """
@@ -58,17 +61,14 @@ def seed_articles(file_path, db_name="articles-db", collection_name="articles", 
     cleaned_data = []
     for article in data:
         cleaned_article = clean_article(article)
-        cleaned_article["seeded_at"] = datetime.utcnow().isoformat()
+        cleaned_article["seeded_at"] = datetime.now(timezone.utc).isoformat()
         cleaned_data.append(cleaned_article)
 
     try:
         client = MongoClient(mongo_uri)
         db = client[db_name]
         collection = db[collection_name]
-
-        # Ensure unique index on 'url' to avoid duplicates
         collection.create_index("url", unique=True)
-
         result = collection.insert_many(cleaned_data, ordered=False)
         print(f"Inserted {len(result.inserted_ids)} cleaned articles into '{db_name}.{collection_name}'.")
     except BulkWriteError as bwe:
@@ -82,8 +82,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--inputjson", required=True, help="Path to the JSON file to seed.")
     parser.add_argument("-d", "--db", default="articles-db", help="MongoDB database name.")
     parser.add_argument("-c", "--collection", default="articles", help="MongoDB collection name.")
-    parser.add_argument("-u", "--uri", default="mongodb://localhost:27017", help="MongoDB URI.")
-
+    parser.add_argument("-u", "--uri", default=DEFAULT_MONGO_URI, help="MongoDB URI.")
     args = parser.parse_args()
 
     seed_articles(
