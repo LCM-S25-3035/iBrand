@@ -72,9 +72,10 @@ def get_article_content(url):
         if len(article.text) > 200:
             return article.text
         raise ValueError("Article too short, fallback needed")
-    except:
+    except Exception as e:
         print(f"⚠️ Newspaper3k failed for {url}")
         print(f"🔁 Falling back to Playwright for {url}")
+        print(f'Failing reason {e}')
         return fetch_with_playwright(url)
 
 # === 6. Main scraping and saving logic ===
