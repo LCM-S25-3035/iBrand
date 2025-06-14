@@ -6,6 +6,8 @@ from bson import ObjectId
 from bson.errors import InvalidId
 import os
 from dotenv import load_dotenv
+from fastapi import Query
+
 
 # === Constants for repeated strings ===
 INVALID_OBJECT_ID_MSG = "Invalid ObjectId format"
@@ -51,20 +53,6 @@ def serialize(post) -> dict:
 
 # === CRUD Endpoints ===
 
-@app.post("/posts/", response_model=ArticleInDB)
-def create_post(post: Article):
-    try:
-        result = collection.insert_one(post.dict())
-        print("Inserted ID:", result.inserted_id)
-        new_post = collection.find_one({"_id": result.inserted_id})
-        return serialize(new_post)
-    except Exception as e:
-        print(f"Error inserting article: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-@app.get("/posts/", response_model=List[ArticleInDB])
-def get_all_posts():
-    return [serialize(post) for post in collection.find()]
 
 @app.get("/posts/{post_id}", response_model=ArticleInDB)
 def get_post(post_id: str):
