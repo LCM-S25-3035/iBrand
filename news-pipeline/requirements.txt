@@ -4,6 +4,7 @@ requests
 beautifulsoup4
 lxml
 pymongo
+python-dotenv
 
 # Optional if you're doing any NLP/sentiment/truth analysis
 openai
