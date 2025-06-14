@@ -16,7 +16,9 @@ TOPIC_NAME = 'scraped-articles'
 
 # === 2. API Config ===
 API_KEY = 'XXXXXXXXXXXXXXXXXXXXXXXXXXX' 
-BASE_URL = 'http://api.mediastack.com/v1/news'
+
+# NB: Change to http for test only , https prevents sonarqube fixes
+BASE_URL = 'https://api.mediastack.com/v1/news'
 
 # === 3. Excluded sources ===
 EXCLUDED_SOURCES = [
