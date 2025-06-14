@@ -17,6 +17,8 @@ HEADERS = {
 OUTPUT_FILE = "news-pipeline/scrapers/BBC/bbc_all_articles.json"
 KAFKA_TOPIC = "bbc-news-stream"
 
+parser = 'html.parser'
+
 producer = KafkaProducer(
     bootstrap_servers='kafka:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
@@ -33,7 +35,7 @@ def get_all_bbc_sections():
     homepage = "https://www.bbc.com"
     try:
         res = fetch_html(homepage)
-        soup = BeautifulSoup(res.text, 'html.parser')
+        soup = BeautifulSoup(res.text, parser)
         section_links = set()
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href']
@@ -69,7 +71,7 @@ def get_article_links(section_url, pages=10):
         url = section_url if page == 1 else f"{section_url}?page={page}"
         res = fetch_html(url)
         if res:
-            soup = BeautifulSoup(res.text, 'html.parser')
+            soup = BeautifulSoup(res.text, parser)
             for a_tag in soup.find_all('a', href=True):
                 href = a_tag['href']
                 if href.startswith("/news") or href.startswith("/sport"):
@@ -81,7 +83,7 @@ def extract_article(url):
     if not res:
         return None
 
-    soup = BeautifulSoup(res.text, 'html.parser')
+    soup = BeautifulSoup(res.text, parser)
     content = "\n".join(p.get_text(strip=True) for p in (soup.find('article') or soup.find('main') or soup).find_all('p'))
 
     article = {
