@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StringType, ArrayType
 from pyspark.sql.functions import from_json, col
 
-MONGO_URI = "mongodb+srv://ernestyawgaisie:ernestyawgaisie@cluster0.dvjsafm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_URI = "mongodb+srv://<username>:<passoword>@cluster0.dvjsafm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
 spark = SparkSession.builder \
     .appName("KafkaToMongo") \
