@@ -6,6 +6,7 @@ import argparse
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 from datetime import datetime, timezone
+from dateutil import parser as date_parser
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 DEFAULT_MONGO_URI = "mongodb://localhost:27017"
@@ -22,14 +23,29 @@ def clean_newlines(text):
         return re.sub(r'[\r\n]+', ' ', text).strip()
     return text
 
+def parse_date(value):
+    """
+    Tries to parse a date string into ISO 8601 format.
+    Returns the original value if parsing fails.
+    """
+    try:
+        dt = date_parser.parse(value)
+        return dt.astimezone(timezone.utc).isoformat()
+    except Exception:
+        return value
+
 def clean_article(article):
     """
     Recursively cleans all string fields in the article dictionary.
+    Converts date fields to ISO 8601 format.
     """
     cleaned_article = {}
     for key, value in article.items():
         if isinstance(value, str):
-            cleaned_article[key] = clean_newlines(value)
+            if "date" in key.lower() or "published" in key.lower():
+                cleaned_article[key] = parse_date(value)
+            else:
+                cleaned_article[key] = clean_newlines(value)
         elif isinstance(value, list):
             cleaned_article[key] = [
                 clean_article(v) if isinstance(v, dict)
