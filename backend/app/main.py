@@ -14,6 +14,11 @@ from fastapi import Query
 INVALID_OBJECT_ID_MSG = "Invalid ObjectId format"
 NEWS_NOT_FOUND_MSG = "News article not found"
 
+# === Constants for MongoDB operators ===
+MONGO_REGEX = "$regex"
+MONGO_OPTIONS = "$options"
+
+
 # Load .env from this file's directory
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 MONGO_URI = os.getenv("MONGO_URI")
@@ -109,11 +114,12 @@ def get_all_news(
     query = {}
 
     if author:
-        query["author"] = {"$regex": author, "$options": "i"}
+        query["author"] = {MONGO_REGEX: author, MONGO_OPTIONS: "i"}
     if source:
-        query["source"] = {"$regex": source, "$options": "i"}
+        query["source"] = {MONGO_REGEX: source, MONGO_OPTIONS: "i"}
     if title:
-        query["title"] = {"$regex": title, "$options": "i"}
+        query["title"] = {MONGO_REGEX: title, MONGO_OPTIONS: "i"}
+
 
     total_items = collection.count_documents(query)
     cursor = collection.find(query).skip(skip).limit(limit)
