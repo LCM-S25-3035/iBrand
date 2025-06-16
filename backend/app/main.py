@@ -81,3 +81,26 @@ def delete_news_by_id(news_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail=NEWS_NOT_FOUND_MSG)
     return {"message": "News article deleted successfully"}
+
+
+# ✅ NEW: Filter + Pagination endpoint
+@app.get("/news", response_model=List[ArticleInDB])
+def get_all_news(
+    author: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    title: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+):
+    query = {}
+
+    if author:
+        query["author"] = {"$regex": author, "$options": "i"}
+    if source:
+        query["source"] = {"$regex": source, "$options": "i"}
+    if title:
+        query["title"] = {"$regex": title, "$options": "i"}
+
+    cursor = collection.find(query).skip(skip).limit(limit)
+    news_list = [serialize(news) for news in cursor]
+    return news_list
