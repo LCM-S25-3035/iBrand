@@ -7,3 +7,9 @@ __pycache__/
 
 # Ignore scraped URL log
 scraped_urls.txt
+
+# Environment variables
+.env
+
+# Ignore all JSON files
+*.json

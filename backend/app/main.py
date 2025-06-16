@@ -6,15 +6,16 @@ from bson import ObjectId
 from bson.errors import InvalidId
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 from fastapi import Query
 
 
 # === Constants for repeated strings ===
 INVALID_OBJECT_ID_MSG = "Invalid ObjectId format"
-POST_NOT_FOUND_MSG = "Post not found"
+NEWS_NOT_FOUND_MSG = "News article not found"
 
-# Load env vars
-load_dotenv()
+# Load .env from this file's directory
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 MONGO_URI = os.getenv("MONGO_URI")
 
 # Connect to MongoDB Atlas
@@ -46,38 +47,37 @@ class ArticleInDB(Article):
     id: str
 
 # === Serialization Helper ===
-def serialize(post) -> dict:
-    post["id"] = str(post["_id"])
-    del post["_id"]
-    return post
+def serialize(news) -> dict:
+    news["id"] = str(news["_id"])
+    del news["_id"]
+    return news
 
 # === CRUD Endpoints ===
 
-
-@app.get("/posts/{post_id}", response_model=ArticleInDB)
-def get_post(post_id: str):
-    if not is_valid_object_id(post_id):
+@app.get("/news/{news_id}", response_model=ArticleInDB)
+def get_news_by_id(news_id: str):
+    if not is_valid_object_id(news_id):
         raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
-    post = collection.find_one({"_id": ObjectId(post_id)})
-    if not post:
-        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
-    return serialize(post)
+    news = collection.find_one({"_id": ObjectId(news_id)})
+    if not news:
+        raise HTTPException(status_code=404, detail=NEWS_NOT_FOUND_MSG)
+    return serialize(news)
 
-@app.put("/posts/{post_id}", response_model=ArticleInDB)
-def update_post(post_id: str, post: Article):
-    if not is_valid_object_id(post_id):
+@app.put("/news/{news_id}", response_model=ArticleInDB)
+def update_news_by_id(news_id: str, article: Article):
+    if not is_valid_object_id(news_id):
         raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
-    result = collection.update_one({"_id": ObjectId(post_id)}, {"$set": post.dict()})
+    result = collection.update_one({"_id": ObjectId(news_id)}, {"$set": article.dict()})
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
-    updated_post = collection.find_one({"_id": ObjectId(post_id)})
-    return serialize(updated_post)
+        raise HTTPException(status_code=404, detail=NEWS_NOT_FOUND_MSG)
+    updated_news = collection.find_one({"_id": ObjectId(news_id)})
+    return serialize(updated_news)
 
-@app.delete("/posts/{post_id}")
-def delete_post(post_id: str):
-    if not is_valid_object_id(post_id):
+@app.delete("/news/{news_id}")
+def delete_news_by_id(news_id: str):
+    if not is_valid_object_id(news_id):
         raise HTTPException(status_code=400, detail=INVALID_OBJECT_ID_MSG)
-    result = collection.delete_one({"_id": ObjectId(post_id)})
+    result = collection.delete_one({"_id": ObjectId(news_id)})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail=POST_NOT_FOUND_MSG)
-    return {"message": "Post deleted successfully"}
+        raise HTTPException(status_code=404, detail=NEWS_NOT_FOUND_MSG)
+    return {"message": "News article deleted successfully"}
