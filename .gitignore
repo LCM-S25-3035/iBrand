@@ -1,0 +1,15 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# macOS system file
+.DS_Store
+
+# Ignore scraped URL log
+scraped_urls.txt
+
+# Environment variables
+.env
+
+# Ignore all JSON files
+*.json

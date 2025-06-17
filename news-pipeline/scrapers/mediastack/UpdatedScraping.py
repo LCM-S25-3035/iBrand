@@ -8,7 +8,9 @@ from playwright.sync_api import sync_playwright
 
 # === 1. API Config ===
 API_KEY = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXX' 
-BASE_URL = 'http://api.mediastack.com/v1/news'
+
+# NB: Change to http for test only , https prevents sonarqube fixes
+BASE_URL = 'https://api.mediastack.com/v1/news'
 
 # === 2. Excluded sources ===
 EXCLUDED_SOURCES = [
@@ -70,9 +72,10 @@ def get_article_content(url):
         if len(article.text) > 200:
             return article.text
         raise ValueError("Article too short, fallback needed")
-    except:
+    except Exception as e:
         print(f"⚠️ Newspaper3k failed for {url}")
         print(f"🔁 Falling back to Playwright for {url}")
+        print(f'Failing reason {e}')
         return fetch_with_playwright(url)
 
 # === 6. Main scraping and saving logic ===
