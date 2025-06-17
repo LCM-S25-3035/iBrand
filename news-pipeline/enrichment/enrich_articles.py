@@ -30,11 +30,14 @@ LABEL_MAP = {
 
 def get_sentiment(text):
     result = sentiment_pipeline(text[:512])[0]
-    label = LABEL_MAP.get(result["label"], result["label"])
+    label = LABEL_MAP.get(result["label"], result["label"])  # maps LABEL_1 → POSITIVE
     score = round(result["score"], 4)
     if 0.48 <= score <= 0.52:
         label = "NEUTRAL"
-    return {"label": label, "score": score}
+    return {
+        "label": label,
+        "score": score
+    }
 
 def detect_bias(text):
     labels = ["left-leaning", "right-leaning", "neutral", "sensational", "factual"]
