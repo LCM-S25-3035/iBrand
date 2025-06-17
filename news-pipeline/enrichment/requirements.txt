@@ -1,0 +1,7 @@
+pymongo
+transformers
+torch
+keybert
+sentence-transformers
+scikit-learn
+protobuf
