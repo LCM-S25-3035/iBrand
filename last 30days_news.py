@@ -3,12 +3,16 @@
 
 # In[1]:
 
-
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
 
-API_KEY = '647fc54de17f444d818a907b032d8ced'  # Your NewsAPI key
+# Load environment variables from .env file
+load_dotenv()
+
+API_KEY = os.getenv('NEWSAPI_API_KEY')  # Read API key from .env
 
 def fetch_newsapi_articles(page=1, page_size=100, from_date=None, to_date=None, query='news'):
     url = 'https://newsapi.org/v2/everything'
@@ -73,10 +77,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# In[ ]:
-
-
-
-
