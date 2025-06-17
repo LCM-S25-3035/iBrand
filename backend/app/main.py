@@ -14,6 +14,11 @@ from fastapi import Query
 INVALID_OBJECT_ID_MSG = "Invalid ObjectId format"
 NEWS_NOT_FOUND_MSG = "News article not found"
 
+# === Constants for MongoDB operators ===
+MONGO_REGEX = "$regex"
+MONGO_OPTIONS = "$options"
+
+
 # Load .env from this file's directory
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 MONGO_URI = os.getenv("MONGO_URI")
@@ -45,6 +50,20 @@ class Article(BaseModel):
 
 class ArticleInDB(Article):
     id: str
+
+
+# === Constants for Pagination  ===
+DEFAULT_PAGE_SIZE = 10
+MAX_PAGE_SIZE = 100
+
+
+# === Pagination Response Model ===
+class PaginatedArticles(BaseModel):
+    current_page: int
+    max_page: int
+    total_items: int
+    items: List[ArticleInDB]
+
 
 # === Serialization Helper ===
 def serialize(news) -> dict:
@@ -81,3 +100,37 @@ def delete_news_by_id(news_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail=NEWS_NOT_FOUND_MSG)
     return {"message": "News article deleted successfully"}
+
+
+# ✅ NEW: Filter + Pagination endpoint
+@app.get("/news", response_model=PaginatedArticles)  # <-- Update response_model here
+def get_all_news(
+    author: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    title: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+):
+    query = {}
+
+    if author:
+        query["author"] = {MONGO_REGEX: author, MONGO_OPTIONS: "i"}
+    if source:
+        query["source"] = {MONGO_REGEX: source, MONGO_OPTIONS: "i"}
+    if title:
+        query["title"] = {MONGO_REGEX: title, MONGO_OPTIONS: "i"}
+
+
+    total_items = collection.count_documents(query)
+    cursor = collection.find(query).skip(skip).limit(limit)
+    news_list = [serialize(news) for news in cursor]
+
+    current_page = (skip // limit) + 1 if limit else 1
+    max_page = (total_items + limit - 1) // limit  # ceiling division
+
+    return {
+        "current_page": current_page,
+        "max_page": max_page,
+        "total_items": total_items,
+        "items": news_list,
+    }
