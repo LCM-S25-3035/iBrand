@@ -3,9 +3,12 @@ from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 
-# Dummy emoji generation function (replace with your real logic)
+# Dummy emoji generation function (replace with real logic)
 def generate_emoji_from_text(text: str, mood: Optional[str] = None) -> str:
+    # TODO: Use `text` for actual emoji generation logic in future
+    _ = text  # Prevents unused variable warning for now
     return "😊" if mood == "happy" else "😐"
+
 
 app = FastAPI(title="EmojiGen API", description="API to generate custom emojis and stickers")
 
