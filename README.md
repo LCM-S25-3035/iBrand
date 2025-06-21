@@ -9,15 +9,32 @@ iBrand is a smart content generation platform that helps brands and social media
 ```
 iBrand/
 ├── backend/
-│   └── index.py
+│   ├── app/
+│   │   ├── emoji_api.py           
+│   │   ├── index.py               
+│   │   └── .dockerignore          
+│
 ├── frontend/
-│   └── index.js
+│   └── index.js                  
+│
 ├── news-pipeline/
-│   ├── kafka_app/
-│   ├── scrapers/
-│   ├── seed/
-│   ├── spark/
-│   ├── .dockerignore
+│   ├── enrichment/
+│   │   ├── models/                
+│   │   │   (filenames not shown) 
+│   │   ├── download_models.py     
+│   │   ├── enrich_articles.py     
+│   │   └── requirements.txt       
+│   │
+│   ├── kafka_app/                 
+│
+│   ├── scrapers/                  
+│
+│   ├── seed/                      
+│
+│   ├── spark/                    
+│
+│   └── .dockerignore             
+
 │   ├── docker-compose.yml
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -29,12 +46,20 @@ iBrand/
 ## 🧠 How It Works (Pipeline Overview)
 
 The `news-pipeline/` ingests and processes real-time news using the following stack:
-
-* **Scrapers**: Pull trending news articles from multiple sources.
-* **Kafka Producer**: Publishes news to a Kafka topic (`news-articles`).
-* **Apache Spark**: A Spark Structured Streaming job reads the Kafka topic, parses the data, and writes enriched results to MongoDB.
-* **MongoDB Atlas**: Stores the cleaned and structured news data.
-* **Docker Compose**: Manages all services including Kafka, Spark, MongoDB, and Elastic.
+**Scrapers** : Collect trending news articles from multiple sources in near real-time.
+**Kafka Producers**: Multiple producer scripts publish raw news data to Kafka topic news-articles.
+**Spark Streaming Jobs**: Consume the Kafka topic, perform real-time processing including:
+Parsing and cleaning the raw news data.
+- Applying enrichment like Named Entity Recognition (NER), sentiment analysis, or topic tagging.
+- Summarization using HuggingFace transformer models.
+- Embedding sentences with Sentence-Transformers for semantic analysis.
+**AI/NLP Models**:
+Sentence embedding models (e.g., all-MiniLM-L6-v2) for semantic similarity and clustering.
+DistilBERT for masked language modeling and feature extraction.
+BART-large-MNLI for zero-shot classification (topic categorization or sentiment inference).
+Summarization models for concise content generation.
+**MongoDB Atlas** : Enriched, summarized, and structured news articles are stored for downstream use.
+**Docker Compose**: Manages all services including Kafka, Spark, MongoDB, and Elastic.
 
 ---
 
@@ -77,23 +102,18 @@ You can connect to MongoDB Atlas or use `mongosh` locally to check the `news-art
 * Python 3.11+ (for local development and testing)
 
 ---
-
 ## 🧹 Modules in Progress
-
 ### 🔵 `frontend/` – Coming Soon
-
 * Will display generated posts
 * UI to select brand voice
 * Scheduled post suggestions
-
 ### 🟢 `backend/` – Coming Soon
-
-* REST API for managing brand tone
-* GPT-powered social copy generation
-* Analytics and engagement predictor
-
----
-
+The backend folder includes the following files and directories:
+**app/**: Contains the main backend application modules and logic.
+**emoji_api.py**: A standalone FastAPI emoji API with an initial /generate endpoint.
+**index.py**: The main backend entrypoint, which starts the FastAPI app.
+**.dockerignore**: Specifies files and folders to exclude from the backend Docker build context.
+The backend is currently evolving with APIs supporting content generation and other AI-powered features.
 ## 📌 Future Additions
 
 * Sentiment analysis and tone adaptation
