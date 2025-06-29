@@ -14,7 +14,8 @@ scraped_urls.txt
 .env
 
 # Ignore all JSON files
-*.json
+frontend/package-lock.json
+# *.json
 
 # Ignore frontend build files
 frontend/.next/
