@@ -1,12 +1,24 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sparkles,
   TrendingUp,
@@ -22,8 +34,10 @@ import {
   Calendar,
   MapPin,
   Heart,
-} from "lucide-react"
-import { AiChatWidget } from "@/components/ai-chat-widget"
+} from "lucide-react";
+import { AiChatWidget } from "@/components/ai-chat-widget";
+
+import { useGetNewsQuery } from "../store/api/newsApi";
 
 // Mock trending news data focused on tariffs and trade
 const trendingNews = [
@@ -38,7 +52,8 @@ const trendingNews = [
     publishedAt: "2024-01-15T10:30:00Z",
     summary:
       "Biden administration implements sweeping tariffs on Chinese EVs, citing national security concerns and unfair trade practices.",
-    image: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop",
     tags: ["tariffs", "china", "electric-vehicles", "trade-war"],
   },
   {
@@ -52,12 +67,14 @@ const trendingNews = [
     publishedAt: "2024-01-14T14:20:00Z",
     summary:
       "EU trade officials debate imposing counter-tariffs following US steel import restrictions, escalating transatlantic trade tensions.",
-    image: "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=400&h=250&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=400&h=250&fit=crop",
     tags: ["eu", "steel", "tariffs", "trade-relations"],
   },
   {
     id: 3,
-    title: "Coffee Import Tariffs Could Increase Prices by 15% Across North America",
+    title:
+      "Coffee Import Tariffs Could Increase Prices by 15% Across North America",
     source: "Bloomberg",
     category: "Agriculture",
     readTime: "5 min read",
@@ -66,12 +83,14 @@ const trendingNews = [
     publishedAt: "2024-01-13T09:15:00Z",
     summary:
       "New trade restrictions on coffee imports from South America may significantly impact coffee prices, affecting major chains and local cafes.",
-    image: "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=250&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=250&fit=crop",
     tags: ["coffee", "agriculture", "imports", "tariffs", "prices"],
   },
   {
     id: 4,
-    title: "Canada Strengthens Local Food Supply Chain Amid Trade Uncertainties",
+    title:
+      "Canada Strengthens Local Food Supply Chain Amid Trade Uncertainties",
     source: "CBC News",
     category: "Canadian Business",
     readTime: "6 min read",
@@ -80,7 +99,8 @@ const trendingNews = [
     publishedAt: "2024-01-12T16:45:00Z",
     summary:
       "Canadian food companies pivot to domestic suppliers as international trade tensions create supply chain vulnerabilities.",
-    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&h=250&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&h=250&fit=crop",
     tags: ["canada", "food-supply", "local-suppliers", "trade"],
   },
   {
@@ -94,12 +114,14 @@ const trendingNews = [
     publishedAt: "2024-01-11T11:30:00Z",
     summary:
       "Supply management system and tariff protections help Canadian dairy farmers maintain competitive pricing and quality standards.",
-    image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=250&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=250&fit=crop",
     tags: ["canada", "dairy", "farmers", "supply-management"],
   },
   {
     id: 6,
-    title: "Maple Syrup Exports Surge as Trade Policies Favor Canadian Products",
+    title:
+      "Maple Syrup Exports Surge as Trade Policies Favor Canadian Products",
     source: "National Post",
     category: "Canadian Business",
     readTime: "3 min read",
@@ -108,10 +130,11 @@ const trendingNews = [
     publishedAt: "2024-01-10T13:20:00Z",
     summary:
       "Canadian maple syrup producers see record exports as favorable trade agreements and tariff structures boost international demand.",
-    image: "https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=400&h=250&fit=crop",
+    image:
+      "https://media.istockphoto.com/id/538184814/photo/maple-syrup-in-glass-bottle-on-wooden-table.jpg?s=612x612&w=0&k=20&c=otZW1nqNfVGroXScQR3jG3wwZYe28IWqufZw94lHHnA=",
     tags: ["maple-syrup", "exports", "canada", "trade-agreements"],
   },
-]
+];
 
 // Tim Hortons branded generated posts
 const mockGeneratedPosts = {
@@ -119,59 +142,127 @@ const mockGeneratedPosts = {
     platform: "LinkedIn",
     content:
       "🇨🇦 While trade tensions rise globally, Tim Hortons remains committed to what we do best - serving Canadians with pride! ☕\n\n🌟 Our strength comes from:\n• 60+ years of Canadian heritage\n• Supporting local suppliers coast-to-coast\n• Building communities, one cup at a time\n• Always True North strong and free\n\nIn uncertain times, we're your reliable Canadian comfort. What's your favorite Tims memory?\n\n#TimHortons #Canada #ProudlyCanadian #CommunityFirst #AlwaysFresh",
-    hashtags: ["#TimHortons", "#Canada", "#ProudlyCanadian", "#CommunityFirst", "#AlwaysFresh"],
-    image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&h=400&fit=crop",
+    hashtags: [
+      "#TimHortons",
+      "#Canada",
+      "#ProudlyCanadian",
+      "#CommunityFirst",
+      "#AlwaysFresh",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&h=400&fit=crop",
   },
   2: {
     platform: "Instagram",
     content:
       "🍁 Trade wars? We're fighting with kindness, one double-double at a time! ☕❤️\n\nWhile the world gets complicated, we keep it simple:\n✅ Fresh coffee, baked daily\n✅ Supporting Canadian communities\n✅ Bringing people together\n✅ Always here for you\n\nThat's the Tim Hortons way! 🇨🇦\n\n#TimsFamily #CanadianPride #CoffeeLovers #CommunityLove #AlwaysThere",
-    hashtags: ["#TimsFamily", "#CanadianPride", "#CoffeeLovers", "#CommunityLove", "#AlwaysThere"],
-    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop",
+    hashtags: [
+      "#TimsFamily",
+      "#CanadianPride",
+      "#CoffeeLovers",
+      "#CommunityLove",
+      "#AlwaysThere",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop",
   },
   3: {
     platform: "Twitter",
     content:
       "☕ Coffee prices rising due to tariffs? \n\nAt Tim Hortons, we're doubling down on our commitment to affordable, quality coffee for all Canadians! 🇨🇦\n\n✨ Same great taste\n✨ Same fair prices\n✨ Same Canadian values\n\nBecause everyone deserves their daily Tims! ❤️\n\n#TimHortons #AffordableCoffee #CanadianValues",
     hashtags: ["#TimHortons", "#AffordableCoffee", "#CanadianValues"],
-    image: "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=600&h=400&fit=crop",
   },
   4: {
     platform: "LinkedIn",
     content:
       "🇨🇦 PROUD MOMENT: While global supply chains face uncertainty, Tim Hortons continues to champion Canadian suppliers! 🌾\n\n📈 Our commitment:\n• 80% of ingredients sourced locally\n• Supporting 1,200+ Canadian farms\n• Creating 15,000+ jobs coast-to-coast\n• Investing $2.5B annually in Canadian communities\n\nWhen you choose Tims, you're choosing Canada. Together, we're stronger! 💪\n\n#TimHortons #BuyCanadian #LocalSuppliers #CommunityInvestment #ProudlyCanadian",
-    hashtags: ["#TimHortons", "#BuyCanadian", "#LocalSuppliers", "#CommunityInvestment", "#ProudlyCanadian"],
-    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&h=400&fit=crop",
+    hashtags: [
+      "#TimHortons",
+      "#BuyCanadian",
+      "#LocalSuppliers",
+      "#CommunityInvestment",
+      "#ProudlyCanadian",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&h=400&fit=crop",
   },
   5: {
     platform: "Instagram",
     content:
       "🥛 Supporting Canadian dairy farmers isn't just good business - it's who we are! 🇨🇦\n\nEvery Tim Hortons coffee is made with:\n✅ 100% Canadian dairy\n✅ Fresh, local ingredients\n✅ Love for our communities\n✅ Pride in our heritage\n\nTaste the difference that Canadian quality makes! ☕❤️\n\n#CanadianDairy #FarmToTable #QualityFirst #TimsFamily #LocalSupport",
-    hashtags: ["#CanadianDairy", "#FarmToTable", "#QualityFirst", "#TimsFamily", "#LocalSupport"],
-    image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=400&fit=crop",
+    hashtags: [
+      "#CanadianDairy",
+      "#FarmToTable",
+      "#QualityFirst",
+      "#TimsFamily",
+      "#LocalSupport",
+    ],
+    image:
+      "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=400&fit=crop",
   },
   6: {
     platform: "Twitter",
     content:
       "🍁 Just like our maple syrup exports are booming, Tim Hortons is spreading Canadian warmth worldwide! 🌍\n\n✨ From coast to coast to coast\n✨ Now in 13+ countries\n✨ Same Canadian hospitality everywhere\n\nTaking a piece of Canada with us wherever we go! 🇨🇦☕\n\n#TimHortons #GlobalCanada #MapleProud",
     hashtags: ["#TimHortons", "#GlobalCanada", "#MapleProud"],
-    image: "https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=600&h=400&fit=crop",
   },
-}
+};
 
-const categories = ["All", "Trade Policy", "International Trade", "Agriculture", "Canadian Business", "Technology"]
-const sortOptions = ["Most Recent", "Most Popular", "Trending First", "Alphabetical"]
+const categories = [
+  "All",
+  "Trade Policy",
+  "International Trade",
+  "Agriculture",
+  "Canadian Business",
+  "Technology",
+];
+const sortOptions = [
+  "Most Recent",
+  "Most Popular",
+  "Trending First",
+  "Alphabetical",
+];
 
 export default function IBrandDashboard() {
-  const [selectedNews, setSelectedNews] = useState<number | null>(null)
-  const [generatedPost, setGeneratedPost] = useState<any>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [sortBy, setSortBy] = useState("Most Recent")
+  const { data: apiNews, isLoading, error } = useGetNewsQuery();
+
+  const combinedNews = useMemo(() => {
+    if (!apiNews) return trendingNews;
+
+    const transformedApiNews = apiNews.map((item, index) => ({
+      id: index + 6,
+      title: item.title,
+      source: item.source,
+      category: "Canadian Business", // or map from your API if you have it
+      readTime: "6 min read", // optional
+      views: "45.2K", // optional
+      trending: true, // optional
+      publishedAt: item.published_at,
+      summary: item.summary,
+      image:
+        "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop", // optional
+      tags: item.tags,
+      url: item.url,
+    }));
+
+    console.log(transformedApiNews);
+
+    return [...trendingNews, ...transformedApiNews];
+  }, [apiNews]);
+
+  const [selectedNews, setSelectedNews] = useState<number | null>(null);
+  const [generatedPost, setGeneratedPost] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortBy, setSortBy] = useState("Most Recent");
 
   const filteredNews = useMemo(() => {
-    let filtered = trendingNews
+    let filtered = combinedNews;
 
     // Filter by search query
     if (searchQuery) {
@@ -179,51 +270,68 @@ export default function IBrandDashboard() {
         (news) =>
           news.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           news.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          news.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
+          news.tags.some((tag) =>
+            tag.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+      );
     }
 
     // Filter by category
     if (selectedCategory !== "All") {
-      filtered = filtered.filter((news) => news.category === selectedCategory)
+      filtered = filtered.filter((news) => news.category === selectedCategory);
     }
 
     // Sort
     switch (sortBy) {
       case "Most Popular":
         filtered = [...filtered].sort(
-          (a, b) => Number.parseFloat(b.views.replace("K", "")) - Number.parseFloat(a.views.replace("K", "")),
-        )
-        break
+          (a, b) =>
+            Number.parseFloat(b.views.replace("K", "")) -
+            Number.parseFloat(a.views.replace("K", ""))
+        );
+        break;
       case "Trending First":
-        filtered = [...filtered].sort((a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0))
-        break
+        filtered = [...filtered].sort(
+          (a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0)
+        );
+        break;
       case "Alphabetical":
-        filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
-        break
+        filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+        break;
       default: // Most Recent
-        filtered = [...filtered].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        filtered = [...filtered].sort(
+          (a, b) =>
+            new Date(b.publishedAt).getTime() -
+            new Date(a.publishedAt).getTime()
+        );
     }
 
-    return filtered
-  }, [searchQuery, selectedCategory, sortBy])
+    return filtered;
+  }, [searchQuery, selectedCategory, sortBy, isLoading]);
 
   const handleSelectNews = (newsId: number) => {
-    setSelectedNews(newsId)
-    setGeneratedPost(null)
-  }
+    setSelectedNews(newsId);
+    setGeneratedPost(null);
+  };
 
   const handleGeneratePost = async () => {
-    if (!selectedNews) return
+    if (!selectedNews) return;
 
-    setIsGenerating(true)
-    await new Promise((resolve) => setTimeout(resolve, 2500))
+    setIsGenerating(true);
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    setGeneratedPost(mockGeneratedPosts[selectedNews as keyof typeof mockGeneratedPosts])
-    setIsGenerating(false)
-  }
+    setGeneratedPost(
+      mockGeneratedPosts[selectedNews as keyof typeof mockGeneratedPosts]
+    );
+    setIsGenerating(false);
+  };
 
-  const selectedNewsItem = trendingNews.find((news) => news.id === selectedNews)
+  const selectedNewsItem = trendingNews.find(
+    (news) => news.id === selectedNews
+  );
+
+  if (isLoading) return <div>Loading news...</div>;
+  if (error) return <div>Error loading news.</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50/30">
@@ -244,15 +352,23 @@ export default function IBrandDashboard() {
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
                   IBrand
                 </h1>
-                <p className="text-sm text-slate-600 font-medium">Tim Hortons Social Intelligence</p>
+                <p className="text-sm text-slate-600 font-medium">
+                  Tim Hortons Social Intelligence
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200 px-3 py-1">
+              <Badge
+                variant="secondary"
+                className="bg-red-100 text-red-700 border-red-200 px-3 py-1"
+              >
                 <MapPin className="w-3 h-3 mr-1" />
                 🇨🇦 Canada
               </Badge>
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3 py-1">
+              <Badge
+                variant="secondary"
+                className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3 py-1"
+              >
                 <Zap className="w-3 h-3 mr-1" />
                 AI Active
               </Badge>
@@ -272,8 +388,12 @@ export default function IBrandDashboard() {
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Trending News</h2>
-                  <p className="text-sm text-slate-600">{filteredNews.length} articles • Updated 2 min ago</p>
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    Trending News
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    {filteredNews.length} articles • Updated 2 min ago
+                  </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -297,7 +417,10 @@ export default function IBrandDashboard() {
                       className="pl-10 border-slate-200 focus:border-red-500 focus:ring-red-500/20"
                     />
                   </div>
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                  >
                     <SelectTrigger className="border-slate-200 focus:border-red-500 focus:ring-red-500/20">
                       <Filter className="w-4 h-4 mr-2 text-slate-400" />
                       <SelectValue placeholder="Category" />
@@ -355,18 +478,25 @@ export default function IBrandDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2 mb-3">
-                          <Badge variant="outline" className="text-xs font-medium border-slate-300">
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-medium border-slate-300"
+                          >
                             {news.category}
                           </Badge>
                           <div className="flex items-center space-x-1 text-xs text-slate-500">
                             <Calendar className="w-3 h-3" />
-                            <span>{new Date(news.publishedAt).toLocaleDateString()}</span>
+                            <span>
+                              {new Date(news.publishedAt).toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
                         <h3 className="font-bold text-slate-900 text-lg leading-tight mb-3 group-hover:text-red-600 transition-colors">
                           {news.title}
                         </h3>
-                        <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-2">{news.summary}</p>
+                        <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-2">
+                          {news.summary}
+                        </p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4 text-xs text-slate-500">
                             <span className="font-medium">{news.source}</span>
@@ -381,7 +511,11 @@ export default function IBrandDashboard() {
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {news.tags.slice(0, 2).map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs bg-slate-100 text-slate-600">
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs bg-slate-100 text-slate-600"
+                              >
                                 #{tag}
                               </Badge>
                             ))}
@@ -402,8 +536,12 @@ export default function IBrandDashboard() {
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Tim Hortons AI Studio</h2>
-                <p className="text-sm text-slate-600">Generate engaging Canadian content</p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Tim Hortons AI Studio
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Generate engaging Canadian content
+                </p>
               </div>
             </div>
 
@@ -413,10 +551,13 @@ export default function IBrandDashboard() {
                   <div className="w-20 h-20 bg-gradient-to-br from-red-200 to-red-300 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <TrendingUp className="w-10 h-10 text-red-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Select News to Begin</h3>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    Select News to Begin
+                  </h3>
                   <p className="text-slate-600 leading-relaxed">
-                    Choose any trending news article to generate Tim Hortons-branded social media content that builds
-                    Canadian pride and community engagement
+                    Choose any trending news article to generate Tim
+                    Hortons-branded social media content that builds Canadian
+                    pride and community engagement
                   </p>
                 </CardContent>
               </Card>
@@ -426,7 +567,9 @@ export default function IBrandDashboard() {
                 <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-bold text-slate-900">Selected Article</CardTitle>
+                      <CardTitle className="text-lg font-bold text-slate-900">
+                        Selected Article
+                      </CardTitle>
                       <Button
                         onClick={handleGeneratePost}
                         disabled={isGenerating}
@@ -454,8 +597,12 @@ export default function IBrandDashboard() {
                         className="w-20 h-16 rounded-lg object-cover"
                       />
                       <div className="flex-1">
-                        <h4 className="font-bold text-slate-900 mb-2 leading-tight">{selectedNewsItem?.title}</h4>
-                        <p className="text-sm text-slate-600 leading-relaxed">{selectedNewsItem?.summary}</p>
+                        <h4 className="font-bold text-slate-900 mb-2 leading-tight">
+                          {selectedNewsItem?.title}
+                        </h4>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          {selectedNewsItem?.summary}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -467,17 +614,28 @@ export default function IBrandDashboard() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-lg font-bold text-slate-900">Tim Hortons Content</CardTitle>
+                          <CardTitle className="text-lg font-bold text-slate-900">
+                            Tim Hortons Content
+                          </CardTitle>
                           <CardDescription className="text-slate-600">
-                            Optimized for {generatedPost.platform} • Ready to publish
+                            Optimized for {generatedPost.platform} • Ready to
+                            publish
                           </CardDescription>
                         </div>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" className="border-slate-300">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-slate-300"
+                          >
                             <Share2 className="w-4 h-4 mr-2" />
                             Share
                           </Button>
-                          <Button variant="outline" size="sm" className="border-slate-300">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-slate-300"
+                          >
                             <Download className="w-4 h-4 mr-2" />
                             Export
                           </Button>
@@ -508,23 +666,29 @@ export default function IBrandDashboard() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-bold text-slate-900">Tim Hortons</p>
-                            <p className="text-xs text-slate-500">Just now • {generatedPost.platform}</p>
+                            <p className="font-bold text-slate-900">
+                              Tim Hortons
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Just now • {generatedPost.platform}
+                            </p>
                           </div>
                         </div>
                         <p className="text-sm whitespace-pre-line mb-4 leading-relaxed text-slate-800">
                           {generatedPost.content}
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {generatedPost.hashtags.map((tag: string, index: number) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="text-xs bg-red-100 text-red-700 border-red-200"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
+                          {generatedPost.hashtags.map(
+                            (tag: string, index: number) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="text-xs bg-red-100 text-red-700 border-red-200"
+                              >
+                                {tag}
+                              </Badge>
+                            )
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -537,5 +701,5 @@ export default function IBrandDashboard() {
       </div>
       <AiChatWidget />
     </div>
-  )
+  );
 }

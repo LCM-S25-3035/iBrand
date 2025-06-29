@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import ReduxProvider from "../store/ReduxProvider";
+
+
 export const metadata: Metadata = {
   title: "iBrand",
   description: "AI Brand Messaging Assistant",
@@ -14,7 +17,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ReduxProvider>{children}</ReduxProvider>
+      </body>
     </html>
   );
 }
