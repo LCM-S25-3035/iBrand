@@ -9,6 +9,8 @@ __pycache__/
 scraped_urls.txt
 
 # Environment variables
+*.env
+
 .env
 
 # Ignore all JSON files
