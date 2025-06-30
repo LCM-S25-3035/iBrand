@@ -2,12 +2,18 @@ from pymongo import MongoClient
 from transformers import pipeline
 from keybert import KeyBERT
 from datetime import datetime
-import logging
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+import logging
 import os
+import time
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(threadName)s - %(levelname)s - %(message)s"
+)
 
 # MongoDB connection
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -20,8 +26,11 @@ collection = db["articles"]
 logging.info("Loading models...")
 sentiment_pipeline = pipeline("sentiment-analysis", model="./models/distilbert-base-uncased")
 kw_model = KeyBERT(model="./models/all-MiniLM-L6-v2")
-bias_classifier = pipeline("zero-shot-classification", model="./models/facebook-bart-large-mnli")
+bias_classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 logging.info("Models loaded.")
+
+# Thread-safe lock for MongoDB writes
+mongo_lock = Lock()
 
 LABEL_MAP = {
     "LABEL_0": "NEGATIVE",
@@ -30,14 +39,11 @@ LABEL_MAP = {
 
 def get_sentiment(text):
     result = sentiment_pipeline(text[:512])[0]
-    label = LABEL_MAP.get(result["label"], result["label"])  # maps LABEL_1 → POSITIVE
+    label = LABEL_MAP.get(result["label"], result["label"])
     score = round(result["score"], 4)
     if 0.48 <= score <= 0.52:
         label = "NEUTRAL"
-    return {
-        "label": label,
-        "score": score
-    }
+    return {"label": label, "score": score}
 
 def detect_bias(text):
     labels = ["left-leaning", "right-leaning", "neutral", "sensational", "factual"]
@@ -62,7 +68,39 @@ def extract_tags(text, top_n=5):
             tags.append(clean_kw)
     return tags
 
-def enrich_articles():
+def enrich_and_store(article):
+    content = article.get("content", "")
+    if not content.strip():
+        logging.warning(f"Skipping article with no content: {article.get('_id')}")
+        return
+
+    try:
+        sentiment = get_sentiment(content)
+        tags = extract_tags(content)
+        bias = detect_bias(content)
+
+        enriched_data = {
+            "sentiment": sentiment,
+            "tags": tags,
+            "bias": bias,
+            "enriched_at": datetime.utcnow()
+        }
+
+        with mongo_lock:
+            collection.update_one(
+                {"_id": article["_id"]},
+                {"$set": enriched_data}
+            )
+        logging.info(f"Enriched article: {article['_id']}")
+
+    except Exception as e:
+        logging.error(f"Error enriching article {article.get('_id')}: {str(e)}")
+
+def chunked(iterable, size):
+    for i in range(0, len(iterable), size):
+        yield iterable[i:i + size]
+
+def enrich_articles_parallel(batch_size=100, max_workers=10):
     query = {
         "$or": [
             {"sentiment": {"$exists": False}},
@@ -74,38 +112,28 @@ def enrich_articles():
         ]
     }
 
-    articles = list(collection.find(query))
+    articles = list(collection.find(query).limit(1000))  # cap for testing speed
 
     if not articles:
         logging.info("No articles found to enrich. Exiting.")
         return
 
-    logging.info(f"Found {len(articles)} articles to enrich.")
+    logging.info(f"Total articles to enrich: {len(articles)}")
+    
+    for batch_num, batch in enumerate(chunked(articles, batch_size), start=1):
+        logging.info(f"Starting batch {batch_num} with {len(batch)} articles...")
 
-    for article in articles:
-        content = article.get("content", "")
-        if not content.strip():
-            logging.warning(f"Skipping article with no content: {article.get('_id')}")
-            continue
+        start = time.time()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(enrich_and_store, article) for article in batch]
+            for future in as_completed(futures):
+                future.result()
+        end = time.time()
 
-        try:
-            sentiment = get_sentiment(content)
-            tags = extract_tags(content)
-            bias = detect_bias(content)
-
-            collection.update_one(
-                {"_id": article["_id"]},
-                {"$set": {
-                    "sentiment": sentiment,
-                    "tags": tags,
-                    "bias": bias,
-                    "enriched_at": datetime.utcnow()
-                }}
-            )
-            logging.info(f"Enriched article: {article['_id']}")
-
-        except Exception as e:
-            logging.error(f"Error enriching article {article.get('_id')}: {str(e)}")
+        logging.info(f"Completed batch {batch_num} in {end - start:.2f} seconds.")
 
 if __name__ == "__main__":
-    enrich_articles()
+    # Test various batch sizes
+    for size in [50, 100, 500]:
+        logging.info(f"\n=== Running with batch size: {size} ===")
+        enrich_articles_parallel(batch_size=size, max_workers=10)
