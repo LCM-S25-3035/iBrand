@@ -50,3 +50,8 @@ class NewsOut(BaseModel):
         if v in (None, "", "Unknown"):
             return None
         return v
+
+class NewsItem(BaseModel):
+    title: str
+    summary: Optional[str] = None
+    url: HttpUrl

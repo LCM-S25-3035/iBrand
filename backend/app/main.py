@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.news_routes import router as news_router
+from app.api.generate_routes import router as generate_router
+
 
 app = FastAPI(title="MongoDB News API")
 
@@ -21,3 +23,4 @@ app.add_middleware(
 )
 
 app.include_router(news_router)
+app.include_router(generate_router)    
