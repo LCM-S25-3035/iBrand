@@ -38,6 +38,7 @@ import {
 import { AiChatWidget } from "@/components/ai-chat-widget";
 
 import { useGetNewsQuery } from "../store/api/newsApi";
+import { useGeneratePostMutation } from "../store/api/generatePostApi";
 
 // Mock trending news data focused on tariffs and trade
 const trendingNews = [
@@ -55,6 +56,7 @@ const trendingNews = [
     image:
       "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop",
     tags: ["tariffs", "china", "electric-vehicles", "trade-war"],
+    url: "https://reuters.com/article",
   },
   {
     id: 2,
@@ -70,6 +72,7 @@ const trendingNews = [
     image:
       "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=400&h=250&fit=crop",
     tags: ["eu", "steel", "tariffs", "trade-relations"],
+    url: "https://reuters.com/article",
   },
   {
     id: 3,
@@ -86,6 +89,7 @@ const trendingNews = [
     image:
       "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=250&fit=crop",
     tags: ["coffee", "agriculture", "imports", "tariffs", "prices"],
+    url: "https://reuters.com/article",
   },
   {
     id: 4,
@@ -102,6 +106,7 @@ const trendingNews = [
     image:
       "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&h=250&fit=crop",
     tags: ["canada", "food-supply", "local-suppliers", "trade"],
+    url: "https://reuters.com/article",
   },
   {
     id: 5,
@@ -117,6 +122,7 @@ const trendingNews = [
     image:
       "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=250&fit=crop",
     tags: ["canada", "dairy", "farmers", "supply-management"],
+    url: "https://reuters.com/article",
   },
   {
     id: 6,
@@ -133,6 +139,7 @@ const trendingNews = [
     image:
       "https://media.istockphoto.com/id/538184814/photo/maple-syrup-in-glass-bottle-on-wooden-table.jpg?s=612x612&w=0&k=20&c=otZW1nqNfVGroXScQR3jG3wwZYe28IWqufZw94lHHnA=",
     tags: ["maple-syrup", "exports", "canada", "trade-agreements"],
+    url: "https://reuters.com/article",
   },
 ];
 
@@ -229,12 +236,14 @@ const sortOptions = [
 
 export default function IBrandDashboard() {
   const { data: apiNews, isLoading, error } = useGetNewsQuery();
+  const [generatePost, { isLoading: isPostLoading }] =
+    useGeneratePostMutation();
 
   const combinedNews = useMemo(() => {
     if (!apiNews) return trendingNews;
 
     const transformedApiNews = apiNews.map((item, index) => ({
-      id: index + 6,
+      id: index + 7,
       title: item.title,
       source: item.source,
       category: "Canadian Business", // or map from your API if you have it
@@ -310,23 +319,53 @@ export default function IBrandDashboard() {
   }, [searchQuery, selectedCategory, sortBy, isLoading]);
 
   const handleSelectNews = (newsId: number) => {
+    console.log(newsId);
+
     setSelectedNews(newsId);
     setGeneratedPost(null);
   };
+
+  // const handleGeneratePost = async () => {
+  //   if (!selectedNews) return;
+
+  //   setIsGenerating(true);
+  //   await new Promise((resolve) => setTimeout(resolve, 2500));
+
+  //   setGeneratedPost(
+  //     mockGeneratedPosts[selectedNews as keyof typeof mockGeneratedPosts]
+  //   );
+  //   setIsGenerating(false);
+  // };
 
   const handleGeneratePost = async () => {
     if (!selectedNews) return;
 
     setIsGenerating(true);
-    await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    setGeneratedPost(
-      mockGeneratedPosts[selectedNews as keyof typeof mockGeneratedPosts]
-    );
-    setIsGenerating(false);
+    const newsItem = combinedNews.find((item) => item.id === selectedNews);
+
+    if (!newsItem) {
+      console.error("News item not found.");
+      return;
+    }
+
+    const payload = {
+      title: newsItem.title,
+      summary: newsItem.summary,
+      url: newsItem.url,
+    };
+
+    try {
+      const result = await generatePost(payload).unwrap();
+      setGeneratedPost(result);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const selectedNewsItem = trendingNews.find(
+  const selectedNewsItem = filteredNews.find(
     (news) => news.id === selectedNews
   );
 
