@@ -1,0 +1,2 @@
+// Placeholder JS
+console.log("Landing page loaded.");
