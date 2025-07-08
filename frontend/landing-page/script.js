@@ -1,2 +1,4 @@
-// Placeholder JS
-console.log("Landing page loaded.");
+function startApp() {
+  window.location.href = "dashboard.html"; // or wherever the app begins
+}
+
