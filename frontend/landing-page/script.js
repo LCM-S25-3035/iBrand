@@ -1,4 +1,5 @@
 function startApp() {
-  window.location.href = "dashboard.html"; // or wherever the app begins
+  // Redirect user to dashboard or main app page
+  window.location.href = "dashboard.html"; 
 }
 
