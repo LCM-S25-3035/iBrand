@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+from pymongo import MongoClient
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-API_KEY = os.getenv('NEWSAPI_API_KEY')  # Read API key from .env
+API_KEY = os.getenv('NEWSAPI_API_KEY')
+MONGO_URI = os.getenv('MONGO_URI')
 
 def fetch_newsapi_articles(page=1, page_size=100, from_date=None, to_date=None, query='news'):
     url = 'https://newsapi.org/v2/everything'
@@ -34,13 +34,18 @@ def fetch_newsapi_articles(page=1, page_size=100, from_date=None, to_date=None, 
     return data['articles']
 
 def main():
+    # Set up MongoDB connection
+    client = MongoClient(MONGO_URI)
+    db = client["iBrandDB"]
+    collection = db["news_articles"]
+
     today = datetime.utcnow()
     one_month_ago = today - timedelta(days=30)
     from_date = one_month_ago.strftime('%Y-%m-%d')
     to_date = today.strftime('%Y-%m-%d')
 
     queries = ['technology', 'business', 'health', 'sports']
-    max_pages_per_query = 10  # 10 pages * 100 articles = 1000 per query max
+    max_pages_per_query = 10
     all_articles = []
 
     for q in queries:
@@ -58,10 +63,10 @@ def main():
         if len(all_articles) >= 3000:
             break
 
-    # Extract and normalize fields for up to 3000 articles
-    data = []
+    # Normalize and insert into MongoDB
+    inserted_count = 0
     for art in all_articles[:3000]:
-        data.append({
+        doc = {
             'url': art.get('url'),
             'source': art.get('source', {}).get('name'),
             'title': art.get('title'),
@@ -69,11 +74,11 @@ def main():
             'published_at': art.get('publishedAt'),
             'summary': art.get('description'),
             'content': art.get('content'),
-        })
+        }
+        collection.insert_one(doc)
+        inserted_count += 1
 
-    df = pd.DataFrame(data)
-    df.to_csv(r'C:\Users\sarita\Downloads\newsapi_last_month_3000.csv', index=False)
-    print("Saved 3000 articles to C:\\Users\\sarita\\Downloads\\newsapi_last_month_3000.csv")
+    print(f"✅ Inserted {inserted_count} articles into MongoDB collection 'news_articles'.")
 
 if __name__ == "__main__":
     main()
