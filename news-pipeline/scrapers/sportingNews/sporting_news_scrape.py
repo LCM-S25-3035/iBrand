@@ -14,7 +14,7 @@ SECTIONS = [
     "nfl", "nba", "mlb", "nhl", "mma", "nascar", "golf",
     "boxing", "tennis", "wwe", "ncaa-football", "ncaa-basketball"
 ]
-MAX_ARTICLES = 10000
+MAX_ARTICLES = 500
 CONCURRENT_PAGES = 10
 SUMMARY_BATCH_SIZE = 8
 MAX_PAGES_PER_SECTION = 50
