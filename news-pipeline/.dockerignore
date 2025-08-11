@@ -1,0 +1,13 @@
+# Sensitive or unnecessary files to exclude
+.env
+*.pem
+*.key
+*.crt
+*.log
+*.db
+.git
+__pycache__/
+.vscode/
+.idea/
+*.pyc
+.DS_Store
