@@ -67,3 +67,46 @@ async def test_update_news(test_app):
         upd_resp = await ac.put(f"/news/{news_id}", json=update_payload)
         assert upd_resp.status_code == 200
         assert upd_resp.json()["title"] == "Updated"
+
+@pytest.mark.asyncio
+async def test_generate_post_success(test_app, mock_openai):
+    async with AsyncClient(app=test_app, base_url="http://test") as ac:
+        news_payload = {
+            "title": "Tim Hortons launches new latte",
+            "summary": "A special winter latte is now available nationwide.",
+            "url": "https://example.com/news/latte"
+        }
+
+        response = await ac.post("/generate-post", json=news_payload)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["platform"] == "LinkedIn"
+        assert "Exciting news" in data["content"]
+        assert "hashtags" in data
+        assert data["image"] == "http://fake-image-url.com/image.png"
+
+        # Ensure OpenAI methods were called
+        mock_openai.chat.completions.create.assert_called_once()
+        mock_openai.images.generate.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_generate_post_openai_failure(test_app, monkeypatch):
+    """Simulate an OpenAI API failure."""
+    # Patch client.chat.completions.create to raise an error
+    def raise_error(*args, **kwargs):
+        raise RuntimeError("OpenAI service unavailable")
+
+    monkeypatch.setattr("app.api.posts.client.chat.completions.create", raise_error)
+
+    async with AsyncClient(app=test_app, base_url="http://test") as ac:
+        news_payload = {
+            "title": "Tim Hortons outage",
+            "summary": "App is temporarily down.",
+            "url": "https://example.com/news/outage"
+        }
+
+        response = await ac.post("/generate-post", json=news_payload)
+        assert response.status_code == 500
+        assert "OpenAI service unavailable" in response.json()["detail"]
