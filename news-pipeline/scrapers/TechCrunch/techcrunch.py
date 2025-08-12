@@ -6,12 +6,14 @@ import json
 import time
 import os
 
+# === Constants ===
 OUTPUT_FILE = "techcrunch_articles.json"
 MAX_ARTICLES = 200
 KAFKA_TOPIC = "techcrunch-articles"
 KAFKA_SERVER = os.getenv("KAFKA_SERVER", "kafka:9092")
+ARTICLE_LINK_SELECTOR = "h3.loop-card__title a"  # Avoid literal duplication (SonarQube S1192)
 
-# Setup Kafka producer
+# === Kafka Producer ===
 def create_producer():
     return KafkaProducer(
         bootstrap_servers=KAFKA_SERVER,
@@ -26,24 +28,24 @@ def send_to_kafka(producer, topic, article_data):
     except Exception as e:
         print(f"Kafka send failed: {e}")
 
-# Load already-scraped URLs
+# === Load Already-Scraped URLs ===
 def get_existing_urls():
     if os.path.exists(OUTPUT_FILE):
         with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
             return {a["url"] for a in json.load(f)}
     return set()
 
+# === Collect Article Links ===
 def get_article_links(page, target_count, seen_urls):
     collected_links = set()
     last_page_links = None
     page_number = 1
 
-    # Step 1: Scrape homepage
     print("--- Scraping Homepage: https://techcrunch.com ---")
     page.goto("https://techcrunch.com", timeout=60000)
     try:
-        page.wait_for_selector("h3.loop-card__title a", timeout=10000)
-        anchors = page.query_selector_all("h3.loop-card__title a")
+        page.wait_for_selector(ARTICLE_LINK_SELECTOR, timeout=10000)
+        anchors = page.query_selector_all(ARTICLE_LINK_SELECTOR)
         homepage_links = {
             a.get_attribute("href")
             for a in anchors
@@ -58,7 +60,6 @@ def get_article_links(page, target_count, seen_urls):
     except Exception as e:
         print(f"Failed to scrape homepage: {e}")
 
-    # Step 2: Visit /latest/ and paginate
     current_url = "https://techcrunch.com/latest/"
 
     while len(collected_links) < target_count:
@@ -66,8 +67,8 @@ def get_article_links(page, target_count, seen_urls):
         page.goto(current_url, timeout=60000)
 
         try:
-            page.wait_for_selector("h3.loop-card__title a", timeout=10000)
-            anchors = page.query_selector_all("h3.loop-card__title a")
+            page.wait_for_selector(ARTICLE_LINK_SELECTOR, timeout=10000)
+            anchors = page.query_selector_all(ARTICLE_LINK_SELECTOR)
             page_links = {
                 a.get_attribute("href")
                 for a in anchors
@@ -77,7 +78,6 @@ def get_article_links(page, target_count, seen_urls):
                    "/gallery/" not in a.get_attribute("href")
             }
 
-            # Stop if page content is same as previous
             if page_links == last_page_links:
                 print("No new links found on this page, stopping.")
                 break
@@ -95,7 +95,6 @@ def get_article_links(page, target_count, seen_urls):
             print(f"Error scraping links: {e}")
             break
 
-        # Scroll to load pagination
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         time.sleep(1)
 
@@ -110,7 +109,7 @@ def get_article_links(page, target_count, seen_urls):
 
     return list(collected_links)[:target_count]
 
-
+# === Scrape a Single Article ===
 def scrape_single_article(page, url):
     try:
         page.goto(url, timeout=60000)
@@ -122,11 +121,9 @@ def scrape_single_article(page, url):
         date_element = page.query_selector("time")
         visible_time_text = date_element.inner_text().strip() if date_element else ""
 
-        # Compare article date with today
         try:
             article_date = datetime.strptime(visible_time_text, "%B %d, %Y").date()
             today = datetime.today().date()
-
             if article_date < today:
                 print(f"Skipping old article from {article_date}: {url}")
                 return "STOP"
@@ -156,7 +153,7 @@ def scrape_single_article(page, url):
         print(f"Failed to extract article at {url}: {e}")
         return None
 
-# Scrape multiple articles and send to Kafka
+# === Scrape Multiple Articles and Save ===
 def scrape_multiple_articles(limit=MAX_ARTICLES):
     existing_data = []
     seen_urls = set()
@@ -196,5 +193,6 @@ def scrape_multiple_articles(limit=MAX_ARTICLES):
         json.dump(all_articles[:MAX_ARTICLES], f, indent=2, ensure_ascii=False)
     print(f"Saved {len(all_articles[:MAX_ARTICLES])} articles to {OUTPUT_FILE}")
 
+# === Run Script ===
 if __name__ == "__main__":
     scrape_multiple_articles()
