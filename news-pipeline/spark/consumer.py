@@ -24,16 +24,12 @@ raw_df = df.selectExpr("CAST(value AS STRING) as json")
 
 # Define schema
 schema = StructType() \
-    .add("id", StringType()) \
     .add("title", StringType()) \
     .add("author", StringType()) \
     .add("published_at", StringType()) \
     .add("content", StringType()) \
-    .add("tags", ArrayType(StringType())) \
-    .add("image_url", StringType()) \
     .add("url", StringType()) \
     .add("source", StringType()) \
-    .add("scraped_at", StringType())
 
 # Parse JSON
 parsed_df = raw_df.select(from_json(col("json"), schema).alias("data")).select("data.*")

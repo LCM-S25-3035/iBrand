@@ -1,5 +1,9 @@
-# Use official Python image
+# Use an official Python base image
 FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
 # Set working directory
 WORKDIR /app
@@ -8,11 +12,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app files
+# Copy the entire app
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 8000
-
-# Run the FastAPI app with Uvicorn
-CMD ["uvicorn", "emoji_api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the app with Uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
