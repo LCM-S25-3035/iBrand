@@ -103,11 +103,11 @@ You can connect to MongoDB Atlas or use `mongosh` locally to check the `news-art
 
 ---
 ## 🧹 Modules in Progress
-### 🔵 `frontend/` – Coming Soon
+### 🔵 `frontend/`
 * Will display generated posts
 * UI to select brand voice
 * Scheduled post suggestions
-### 🟢 `backend/` – Coming Soon
+### 🟢 `backend/
 The backend folder includes the following files and directories:
 **app/**: Contains the main backend application modules and logic.
 **emoji_api.py**: A standalone FastAPI emoji API with an initial /generate endpoint.
